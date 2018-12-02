@@ -1,3 +1,6 @@
+# C
+*.out
+
 # Vim
 *.swp
 *.swo
