@@ -38,7 +38,7 @@ std::pair<bool,bool> check_id(std::string s)
     return bools;
 }
 
-std::pair<int,int> get_checksum(const std::vector<std::string>& vs)
+int get_checksum(const std::vector<std::string>& vs)
 {
     auto checksum = std::make_pair(0, 0);
 
@@ -49,12 +49,7 @@ std::pair<int,int> get_checksum(const std::vector<std::string>& vs)
                 checksum.second += res.second;  // this a bad thing?
             });
 
-    return checksum;
-}
-
-int calc_checksum(const std::pair<int,int>& cs)
-{
-    return cs.first * cs.second;
+    return checksum.first * checksum.second;
 }
 
 std::string get_common_id(const std::string& s1, const std::string& s2)
@@ -83,11 +78,9 @@ int main()
 {
     auto input = get_input();
 
-    auto part1 = calc_checksum(get_checksum(input));
-
+    auto part1 = get_checksum(input);
     std::cout << "Part 1: " << part1 << '\n';
 
     auto part2 = find_almost_match(input);
-
     std::cout << "Part 2: " << part2 << '\n';
 }
