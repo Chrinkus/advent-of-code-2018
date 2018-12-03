@@ -1,19 +1,8 @@
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <algorithm>
 
-std::vector<std::string> get_input()
-{
-    std::vector<std::string> vs;
-    std::ifstream ifs { "./input.txt" };
-    std::string line;
-
-    while(std::getline(ifs, line))
-        vs.push_back(std::move(line));
-
-    return vs;
-}
+#include <get_input.hpp>
 
 std::pair<bool,bool> check_id(std::string s)
 {
@@ -72,11 +61,12 @@ std::string find_almost_match(const std::vector<std::string>& vs)
                     return get_common_id(s1, s2);
             }
         }
+    return "Error: could not find near match\n";
 }
 
 int main()
 {
-    auto input = get_input();
+    auto input = utils::get_input_lines();
 
     auto part1 = get_checksum(input);
     std::cout << "Part 1: " << part1 << '\n';
