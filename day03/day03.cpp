@@ -33,8 +33,8 @@ std::istream& operator>>(std::istream& is, Claim& claim)
 auto map_claims(const std::vector<Claim>& vc)
 {
     Fabric fabric;
-    for (auto& ai : fabric)
-        ai.fill(0);
+    std::for_each(std::begin(fabric), std::end(fabric),
+            [](auto& arr) { arr.fill(0); });
 
     std::for_each(std::begin(vc), std::end(vc),
             [&fabric](const Claim& c) {

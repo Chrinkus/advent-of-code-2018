@@ -6,10 +6,6 @@
 
 #include <get_input.hpp>
 
-constexpr size_t FAB_WIDTH = 1000;
-
-using Fabric = std::array<std::array<int,FAB_WIDTH>,FAB_WIDTH>;
-
 struct Claim {
     int id = 0;
     int x = 0;
@@ -17,6 +13,59 @@ struct Claim {
     int w = 0;
     int h = 0;
 };
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+constexpr size_t FAB_WIDTH = 1000;
+
+class Fabric {
+public:
+    Fabric()
+    {
+        std::for_each(std::begin(fabric), std::end(fabric),
+                [](auto& arr) { arr.fill(0); });
+    }
+
+    void stake_claim(const Claim& c);
+
+    int count_overlaps() const;
+    int find_intact_id(const std::vector<Claim>& claims) const;
+
+private:
+    std::array<std::array<int,FAB_WIDTH>,FAB_WIDTH> fabric;
+};
+
+void Fabric::stake_claim(const Claim& c)
+{
+    for (int i = c.y; i < c.y + c.h; ++i)
+        for (int j = c.x; j < c.x + c.w; ++j)
+            ++fabric[i][j];
+}
+
+int Fabric::count_overlaps() const
+{
+    int count = 0;
+    for (const auto& ai : fabric)
+        for (const auto i : ai)
+            if (i > 1)
+                ++count;
+    return count;
+}
+
+int Fabric::find_intact_id(const std::vector<Claim>& claims) const
+{
+    for (const auto& c : claims) {
+        bool intact = true;
+        for (int i = c.y; intact && i < c.y + c.h; ++i)
+            for (int j = c.x; intact && j < c.x + c.w; ++j)
+                if (fabric[i][j] != 1)
+                    intact = false;
+        if (intact)
+            return c.id;
+    }
+
+    return 0;       // no swaths are intact
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -34,10 +83,10 @@ auto parse_claims(const std::vector<std::string>& vs)
                 auto it = ++matches.begin();
                 Claim claim {};
                 claim.id = std::stoi(*it++);
-                claim.x = std::stoi(*it++);
-                claim.y = std::stoi(*it++);
-                claim.w = std::stoi(*it++);
-                claim.h = std::stoi(*it++);
+                claim.x  = std::stoi(*it++);
+                claim.y  = std::stoi(*it++);
+                claim.w  = std::stoi(*it++);
+                claim.h  = std::stoi(*it);
                 vc.push_back(claim);
             });
 
@@ -47,70 +96,23 @@ auto parse_claims(const std::vector<std::string>& vs)
 auto map_claims(const std::vector<Claim>& vc)
 {
     Fabric fabric;
-    /*
-    std::for_each(std::begin(fabric), std::end(fabric),
-            [](auto vec) { vec.fill(0); });
-    */
-    for (size_t i = 0; i < FAB_WIDTH; ++i)
-        for (size_t j = 0; j < FAB_WIDTH; ++j)
-            fabric[i][j] = 0;
 
     std::for_each(std::begin(vc), std::end(vc),
-            [&fabric](const Claim& c) {
-                for (int i = c.y; i < c.y + c.h; ++i)
-                    for (int j = c.x; j < c.x + c.w; ++j)
-                        ++(fabric[i][j]);
-            });
+            [&fabric](const Claim& c) { fabric.stake_claim(c); });
 
     return fabric;
-}
-
-int count_overlaps(const Fabric& aai)
-{
-    int count = 0;
-    /*
-    for (const auto& ai : aai)
-        for (const auto i : ai)
-            if (i > 1)
-                ++count;
-    */
-    for (size_t i = 0; i < FAB_WIDTH; ++i)
-        for (size_t j = 0; j < FAB_WIDTH; ++j)
-            if (aai[i][j] > 1) {
-                ++count;
-            }
-    return count;
-}
-
-int find_intact_id(const std::vector<Claim>& vc, const Fabric& fab)
-{
-    for (const auto& c : vc) {
-        bool intact = true;
-        for (int i = c.y; intact && i < c.y + c.h; ++i)
-            for (int j = c.x; intact && j < c.x + c.w; ++j)
-                if (fab[i][j] != 1)
-                    intact = false;
-        if (intact)
-            return c.id;
-    }
-
-    return 0;       // no swaths are intact
-}
-
-auto count_overlapping_claims(const std::vector<std::string>& vs)
-{
-    auto vc = parse_claims(vs);
-    auto fabric = map_claims(vc);
-    auto overlaps = count_overlaps(fabric);
-    auto intact_id = find_intact_id(vc, fabric);
-    return std::make_pair(overlaps, intact_id);
 }
 
 int main()
 {
     auto input = utils::get_input_lines();
 
-    auto parts = count_overlapping_claims(input);
-    std::cout << "Part 1: " << parts.first << '\n';
-    std::cout << "Part 2: " << parts.second << '\n';
+    auto claims = parse_claims(input);
+    auto fabric = map_claims(claims);
+
+    auto part1 = fabric.count_overlaps();
+    std::cout << "Part 1: " << part1 << '\n';
+
+    auto part2 = fabric.find_intact_id(claims);
+    std::cout << "Part 2: " << part2 << '\n';
 }
