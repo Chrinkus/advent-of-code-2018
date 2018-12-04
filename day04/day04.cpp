@@ -8,34 +8,37 @@
 
 #include <get_input.hpp>
 
-struct Guard {
-    int id = 0;
-    int total_sleep = 0;
-    int sleepiest_min = -1;
-    std::vector<std::pair<int,int>> asleep_awake;
-    std::vector<int> mins;
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+// I avoided making this a class for so long. Got part 1 done without it but
+// code was so unorganized and repetitive I needed to go a little more OO.
+// Part 2 was completed with this as a struct and all members public. Although
+// it worked I was embarassed at the lack of encapsulation.
 
+class Guard {
+public:
     explicit Guard(int i)
         : id{i}, mins{std::vector<int>(60)}
     {
         std::fill(std::begin(mins), std::end(mins), 0);
     }
 
-    void print_mins() const;
+    auto get_aoc_answer()  const -> int { return id * sleepy_min; }
+    auto get_id()          const -> int { return id; }
+    auto get_total_sleep() const -> int { return total_sleep; }
+    auto get_sleepy_min()  const -> int { return sleepy_min; }
+    auto get_mins()        const -> const std::vector<int>& { return mins; }
 
     void add_sleep_record(int sl, int aw);
     void calc_total_sleep();
     void map_minutes();
-    void set_sleepiest_min();
+    void set_sleepy_min();
+private:
+    int id = 0;
+    int total_sleep = 0;
+    int sleepy_min = -1;
+    std::vector<std::pair<int,int>> asleep_awake;
+    std::vector<int> mins;
 };
-
-void Guard::print_mins() const
-{
-    std::cout << "ID# " << id << ' ';
-    for (const auto m : mins)
-        std::cout << m << ' ';
-    std::cout << '\n';
-}
 
 void Guard::add_sleep_record(int sl, int aw)
 {
@@ -59,23 +62,21 @@ void Guard::map_minutes()
             ++(mins[i]);
 }
 
-void Guard::set_sleepiest_min()
+void Guard::set_sleepy_min()
 {
     auto it = std::max_element(std::begin(mins), std::end(mins));
-    sleepiest_min = std::distance(std::begin(mins), it);
-}
-
-std::ostream& operator<<(std::ostream& os, const Guard& g)
-{
-    return os << "Id#" << g.id << " total sleep: " << g.total_sleep
-              << " sleepy minute: " << g.sleepiest_min;
+    sleepy_min = std::distance(std::begin(mins), it);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+// This should also be a class, a wrapper for a hash table and the problem
+// specific operations I need for it. I may refactor this again if I have time
+// in the future...
 
 using Guard_sleep_map = std::unordered_map<int, std::unique_ptr<Guard>>;
 
 auto retrieve_guard(int key, Guard_sleep_map& gsm)
+    // The Chandler Carruth unordered_map access pattern!
 {
     auto& pg = gsm[key];
     if (pg)
@@ -99,10 +100,13 @@ void map_all_mins(const Guard_sleep_map& gsm)
 void set_all_sleepy_mins(const Guard_sleep_map& gsm)
 {
     std::for_each(std::begin(gsm), std::end(gsm),
-            [](auto& gp) { gp.second->set_sleepiest_min(); });
+            [](auto& gp) { gp.second->set_sleepy_min(); });
 }
 
 auto map_sleep_data(const std::vector<std::string>& vs)
+    // This is why I want to refactor Guard_sleep_map into its own class. This
+    // function is more like a factory/builder function than whatever it is
+    // right now.
 {
     Guard_sleep_map gsm;
 
@@ -132,17 +136,22 @@ auto map_sleep_data(const std::vector<std::string>& vs)
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+// Free-standing functions to retrieve the data needed to answer the parts of
+// the challenges. The return values are quite awkward and I currently don't
+// know what's best to give back, a ref, value or pointer..
 
-auto max_sleeper(const Guard_sleep_map& gsm)
+const auto max_sleeper(const Guard_sleep_map& gsm)
 {
     auto it = std::max_element(std::begin(gsm), std::end(gsm),
                                [](auto& ga, auto& gb) {
-                                   return ga.second->total_sleep <
-                                          gb.second->total_sleep;
+                                   return ga.second->get_total_sleep() <
+                                          gb.second->get_total_sleep();
                                });
-    return *(it->second);
+    return it->second.get();
 }
 
+// Almost resorted to a vector of three-int-tuples but went the Kate Gregory
+// route and made my own struct. I like it.
 struct Sleeper {
     Sleeper(int i, int m, int s) : id{i}, minute{m}, sleep{s} { }
     int id = 0;
@@ -150,14 +159,16 @@ struct Sleeper {
     int sleep = 0;
 };
 
-auto find_most_reg_sleeper(const Guard_sleep_map& gsm)
+const auto find_most_reg_sleeper(const Guard_sleep_map& gsm)
 {
     std::vector<Sleeper> vs;
+
     for (const auto& gp : gsm) {
         auto& p = gp.second;
-        auto it = std::max_element(std::begin(p->mins), std::end(p->mins));
-        auto minute = std::distance(std::begin(p->mins), it);
-        vs.emplace_back(Sleeper{ p->id, static_cast<int>(minute), *it });
+        auto it = std::max_element(std::begin(p->get_mins()),
+                                   std::end(p->get_mins()));
+        auto minute = std::distance(std::begin(p->get_mins()), it);
+        vs.emplace_back(Sleeper{ p->get_id(), static_cast<int>(minute), *it });
     }
 
     auto it = std::max_element(std::begin(vs), std::end(vs),
@@ -165,7 +176,7 @@ auto find_most_reg_sleeper(const Guard_sleep_map& gsm)
                 return a.sleep < b.sleep;
             });
 
-    return it->id * it->minute;
+    return gsm.at(it->id).get();    // at at at... for const access~!
 }
 
 int main()
@@ -177,11 +188,11 @@ int main()
 
     auto gsm = map_sleep_data(input);
 
-    auto worst_guard = max_sleeper(gsm);
-
-    auto part1 = worst_guard.id * worst_guard.sleepiest_min;
+    const auto p_worst_guard = max_sleeper(gsm);
+    auto part1 = p_worst_guard->get_aoc_answer();
     std::cout << "Part 1: " << part1 << '\n';
 
-    auto part2 = find_most_reg_sleeper(gsm);
+    const auto p_reg_sleeper = find_most_reg_sleeper(gsm);
+    auto part2 = p_reg_sleeper->get_aoc_answer();
     std::cout << "Part 2: " << part2 << '\n';
 }
