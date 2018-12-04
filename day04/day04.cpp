@@ -139,15 +139,16 @@ auto map_sleep_data(const std::vector<std::string>& vs)
 // Free-standing functions to retrieve the data needed to answer the parts of
 // the challenges. The return values are quite awkward and I currently don't
 // know what's best to give back, a ref, value or pointer..
+// UPDATE: In accordance with the Core Guidelines I am returning a const ref.
 
-const auto max_sleeper(const Guard_sleep_map& gsm)
+const auto& max_sleeper(const Guard_sleep_map& gsm)
 {
     auto it = std::max_element(std::begin(gsm), std::end(gsm),
                                [](auto& ga, auto& gb) {
                                    return ga.second->get_total_sleep() <
                                           gb.second->get_total_sleep();
                                });
-    return it->second.get();
+    return *it->second;
 }
 
 // Almost resorted to a vector of three-int-tuples but went the Kate Gregory
@@ -159,7 +160,7 @@ struct Sleeper {
     int sleep = 0;
 };
 
-const auto find_most_reg_sleeper(const Guard_sleep_map& gsm)
+const auto& find_most_reg_sleeper(const Guard_sleep_map& gsm)
 {
     std::vector<Sleeper> vs;
 
@@ -176,7 +177,7 @@ const auto find_most_reg_sleeper(const Guard_sleep_map& gsm)
                 return a.sleep < b.sleep;
             });
 
-    return gsm.at(it->id).get();    // at at at... for const access~!
+    return *gsm.at(it->id);    // at at at... for const access~!
 }
 
 int main()
@@ -188,11 +189,11 @@ int main()
 
     auto gsm = map_sleep_data(input);
 
-    const auto p_worst_guard = max_sleeper(gsm);
-    auto part1 = p_worst_guard->get_aoc_answer();
+    const auto& worst_guard = max_sleeper(gsm);
+    auto part1 = worst_guard.get_aoc_answer();
     std::cout << "Part 1: " << part1 << '\n';
 
-    const auto p_reg_sleeper = find_most_reg_sleeper(gsm);
-    auto part2 = p_reg_sleeper->get_aoc_answer();
+    const auto& reg_sleeper = find_most_reg_sleeper(gsm);
+    auto part2 = reg_sleeper.get_aoc_answer();
     std::cout << "Part 2: " << part2 << '\n';
 }
