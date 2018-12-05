@@ -2,8 +2,10 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <thread>
 
 #include <get_input.hpp>
+#include <task_threading.hpp>
 
 bool are_opposite(char a, char b)
 {
@@ -36,42 +38,35 @@ int react_polymer(std::string s)
     return s.size();
 }
 
-void remove_all_of_char(std::string& s, char c)
+std::string remove_all_of_char(std::string s, char c)
 {
     auto it = std::begin(s);
     auto sentry = std::end(s);
     while (it != sentry) {
-        if (it[0] == c) {
+        if (it[0] == c || it[0] == toupper(c)) {
             it = s.erase(it);
             sentry = std::end(s);
         } else {
             ++it;
         }
     }
-}
-
-std::string remove_lower_upper(std::string s, char c)
-    // always given lowercase chars
-{
-    remove_all_of_char(s, c);
-    remove_all_of_char(s, toupper(c));
     return s;
 }
 
-int get_shortest_length(std::string s)
+int reduce_react(std::string s, char c)
+{
+    s = remove_all_of_char(s, c);       // reduce
+    return react_polymer(s);            // react
+}
+
+int get_shortest_length(const std::string& s)
 {
     std::vector<char> alphabet;
     for (char c = 'a'; c <= 'z'; ++c)
         alphabet.push_back(c);
 
-    std::vector<std::string> reduced;   // 26 versions of reduced input
-    reduced.reserve(alphabet.size());   // minimize reallocations
-    for (const auto c : alphabet)
-        reduced.emplace_back(remove_lower_upper(s, c));
-
-    std::vector<int> lengths;           // sizes of reduced & reacted input
-    for (auto s : reduced)
-        lengths.push_back(react_polymer(s));
+    std::vector<int> lengths (alphabet.size());
+    utils::split_task(reduce_react, alphabet, lengths, s);
 
     auto it_min = std::min_element(std::begin(lengths), std::end(lengths));
     return *it_min;
