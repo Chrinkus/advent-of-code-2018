@@ -65,6 +65,7 @@ int get_shortest_length(std::string s)
         alphabet.push_back(c);
 
     std::vector<std::string> reduced;   // 26 versions of reduced input
+    reduced.reserve(alphabet.size());   // minimize reallocations
     for (const auto c : alphabet)
         reduced.emplace_back(remove_lower_upper(s, c));
 

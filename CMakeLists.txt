@@ -11,7 +11,7 @@ project(Aoc2018 VERSION 0.1
 if (MSVC)
     add_compile_options(/W4)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic -O3)
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
