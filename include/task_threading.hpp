@@ -4,14 +4,18 @@
 namespace utils {
 
 template <typename F, typename C, typename D, typename T>
-void task_scheduler(F f, const C& src, D& dest, size_t split, size_t offset,
-        const T& t)
+void task_scheduler(F f, const C& src, D& dest, size_t offset, size_t split,
+                    const T& t)
 {
-    auto dit = std::begin(dest) + offset;
-    auto sit = std::begin(src) + offset;
-    auto sentry = sit + offset + split;
+    auto dit = std::begin(dest);
+    auto sit = std::begin(src);
+    std::advance(dit, offset);
+    std::advance(sit, offset);
 
-    while (sit != std::end(src) && sit != sentry) {
+    auto sentry = std::begin(src);
+    std::advance(sentry, std::min(offset + split, src.size()));
+
+    while (sit != sentry) {
         *dit = f(t, *sit);
         ++dit;
         ++sit;
@@ -35,8 +39,8 @@ void split_task(F task, const C& src, D& dest, const T& t)
     std::vector<std::thread> vt (num_threads);
     for (size_t i = 0; i < vt.size(); ++i) {
         size_t offset = i * split;
-        vt[i] = std::thread{sched, task, std::ref(src), std::ref(dest), split,
-                            offset, std::ref(t)};
+        vt[i] = std::thread{sched, task, std::ref(src), std::ref(dest), offset,
+                            split, std::ref(t)};
     }
 
     for (auto& t : vt)
