@@ -9,3 +9,6 @@ target_compile_features(day03 PRIVATE cxx_std_14)
 
 add_executable(day04 day04.cpp)
 target_compile_features(day04 PRIVATE cxx_std_14)
+
+add_executable(day05 day05.cpp)
+target_compile_features(day05 PRIVATE cxx_std_14)

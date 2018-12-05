@@ -4,6 +4,13 @@
 
 namespace utils {
 
+auto get_input_string(std::istream& is = std::cin)
+{
+    std::string line;
+    std::getline(is, line);
+    return line;
+}
+
 auto get_input_lines(std::istream& is = std::cin)
 {
     std::vector<std::string> vs;
