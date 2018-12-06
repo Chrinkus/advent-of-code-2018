@@ -43,8 +43,8 @@ void split_task(F task, const C& src, D& dest, const T& t)
     std::vector<std::thread> vt (num_threads);
     for (size_t i = 0; i < vt.size(); ++i) {
         size_t offset = i * split;
-        vt[i] = std::thread{sched, task, std::ref(src), std::ref(dest), offset,
-                            split, std::ref(t)};
+        vt[i] = std::thread{sched, task, std::cref(src), std::ref(dest),
+                            offset, split, std::cref(t)};
     }
 
     for (auto& t : vt)
