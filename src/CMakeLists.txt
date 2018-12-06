@@ -12,3 +12,6 @@ target_compile_features(day04 PRIVATE cxx_std_14)
 
 add_executable(day05 day05.cpp)
 target_compile_features(day05 PRIVATE cxx_std_14)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(day05 PRIVATE Threads::Threads)

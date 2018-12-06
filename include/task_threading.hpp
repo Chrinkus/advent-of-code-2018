@@ -3,6 +3,8 @@
 
 namespace utils {
 
+static constexpr size_t MIN_THREADS = 2;
+
 template <typename F, typename C, typename D, typename T>
 void task_scheduler(F f, const C& src, D& dest, size_t offset, size_t split,
                     const T& t)
@@ -30,8 +32,10 @@ void split_task(F task, const C& src, D& dest, const T& t)
 
     auto num_threads = std::thread::hardware_concurrency();
     auto split = src.size() / num_threads;
-    if (split < 2)                  // a split of 1 is not desired at this time
-        split = 2;
+    if (split < MIN_THREADS) {     
+        split = MIN_THREADS;
+        num_threads = src.size() / MIN_THREADS;
+    }
     else if (src.size() % split != 0)   // ensure splits will cover size
         ++split;
 
