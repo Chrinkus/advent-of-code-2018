@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <deque>
 #include <list>
 #include <algorithm>
 #include <regex>
@@ -38,6 +39,43 @@ auto parse_steps(const std::vector<std::string>& input)
 
     return vsteps;
 }
+
+/*
+auto get_step_order(const std::vector<Step>& steps)
+{
+    std::vector<char> done;
+    std::vector<char> ready;
+    std::vector<char> pool;
+    for (char c = 'A'; c <= 'Z'; ++c)
+        pool.push_back(c);
+
+    while (pool.size()) {
+        ready.resize(pool.size());
+        std::copy(std::begin(pool), std::end(pool), std::begin(ready));
+        pool.clear();
+
+        for (const auto& step : steps) {
+            auto dit = std::find(std::begin(done), std::end(done),
+                                 step.do_this);     // check if do_this is done
+            if (dit == std::end(done)) {            // not done
+                auto rit = std::find(std::begin(ready), std::end(ready),
+                                     step.before);
+                if (rit != std::end(ready)) {
+                    ready.erase(rit);
+                    pool.push_back(step.before);
+                }
+            }
+        }
+        std::sort(std::rbegin(ready), std::rend(ready));
+        done.push_back(ready.back());
+        ready.pop_back();
+        for (const auto c : ready)
+            pool.push_back(c);
+        ready.clear();
+    }
+    return std::string {std::begin(done), std::end(done)};
+}
+*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -97,6 +135,7 @@ void Task_mgr::advance_time()
             [](auto& w) { if (w.time_left > 0) --w.time_left; });
 }
 
+// add to class
 bool Task_mgr::check_workers()
 {
     if (workers.size() == 0)
@@ -113,6 +152,28 @@ bool Task_mgr::check_workers()
         }
     return change;
 }
+
+/* Deque attempt
+void Task_mgr::load_ready(const std::vector<Step>& steps)
+    // put all tasks that have no pre-requisites into ready
+{
+    ready.resize(pool.size());
+    std::copy(std::begin(pool), std::end(pool), std::begin(ready));
+    pool.clear();
+
+    for (const auto& s : steps) {
+        auto dit = std::find(std::begin(done), std::end(done), s.do_this);
+        if (dit == std::end(done)) {
+            auto rit = std::find(std::begin(ready), std::end(ready), s.before);
+            if (rit != std::end(ready)) {
+                ready.erase(rit);
+                pool.push_back(s.before);
+            }
+        }
+    }
+    std::sort(std::begin(ready), std::end(ready));
+}
+*/
 
 void Task_mgr::review_tasks(const std::vector<Step>& steps)
 {
@@ -131,6 +192,14 @@ void Task_mgr::review_tasks(const std::vector<Step>& steps)
         }
     }
 
+    /* Deque attempt
+    std::sort(std::begin(ready), std::end(ready));
+    for (auto it = std::begin(ready),
+            it != std::end(ready) && workers.size() < max_w; ) {
+        assign_task(*it++);
+        ready.pop_front();
+    }
+    */
     std::sort(std::rbegin(ready), std::rend(ready));
     for (auto it = std::rbegin(ready);
             it != std::rend(ready) && workers.size() < max_w; ) {
