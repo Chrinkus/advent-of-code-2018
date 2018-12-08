@@ -3,35 +3,34 @@
 #include <vector>
 #include <list>
 #include <algorithm>
+#include <numeric>
 #include <regex>
 
 #include <get_input.hpp>
 
 struct Step {
-    char do_this = '\0';
-    char before = '\0';
+    char prereq;
+    char step_token;
 };
 
 std::ostream& operator<<(std::ostream& os, const Step& s)
 {
-    return os << "Do " << s.do_this << " before " << s.before;
+    return os << "Do " << s.prereq << " before " << s.step_token;
 }
 
 auto parse_steps(const std::vector<std::string>& input)
 {
     std::vector<Step> vsteps (input.size());
 
+    const std::regex pat {R"(^Step\s(\w).*(\w)\scan\sbegin\.$)"};
+
     std::transform(std::begin(input), std::end(input), std::begin(vsteps),
-            [](auto line) {
-                static const std::regex pat_1 {R"(^Step\s(\w))"};
-                static const std::regex pat_2 {R"((\w) can begin\.\s?$)"};
-                Step step;
-                std::smatch m_1;
-                std::regex_search(line, m_1, pat_1);
-                step.do_this = m_1[1].str()[0];
-                std::smatch m_2;
-                std::regex_search(line, m_2, pat_2);
-                step.before = m_2[1].str()[0];
+            [&pat](auto line) {
+                //std::cmatch match;
+                std::smatch match;
+                std::regex_search(line, match, pat);
+                //Step step {match[1], match[2]};
+                Step step {match[1].str()[0], match[2].str()[0]};
 
                 return step;
             });
@@ -44,46 +43,48 @@ auto parse_steps(const std::vector<std::string>& input)
 struct Worker {
     char task = '\0';
     int time_left = 0;
+    void dec_time() { --time_left; }
 };
 
 class Task_mgr {
 public:
-    Task_mgr(size_t max_workers, char begin_t, char end_t,
-             int base_task_time = 0);
+    Task_mgr(size_t max_w, size_t num_s, int base_t = 0);
+
+    std::string get_order_string() const;
 
     int  run(const std::vector<Step>& steps);
-    std::string get_order_string() const;
 
 private:
     int  get_task_time(char t) const;
-    bool tasks_complete() const { return done.size() == num_tasks(); }
+    bool tasks_complete() const { return done.size() == num_steps; }
+
     void assign_task(char t);
     void advance_time();
     bool check_workers();
     void review_tasks(const std::vector<Step>& steps);
-    size_t num_tasks() const { return l_tok - f_tok + 1; }
 
-    const size_t  max_w;        // max workers
-    const char f_tok;           // first token
-    const char l_tok;           // last token
-    const int  btt;             // base task time
+    const char    first_token = 'A';
+    const size_t  max_workers;  // max workers
+    const size_t  num_steps;    // number of tasks
+    const int     base_tt;      // base task time
     std::vector<char> done;
-    std::deque<char> ready;
+    std::vector<char> ready;
     std::vector<char> pool;
     std::list<Worker> workers;
 };
 
-Task_mgr::Task_mgr(size_t max_workers, char begin_t, char end_t,
-                   int base_task_time)
-    : max_w{max_workers}, f_tok{begin_t}, l_tok{end_t}, btt{base_task_time}
+Task_mgr::Task_mgr(size_t max_w, size_t num_s, int base_t)
+    : max_workers{max_w},
+      num_steps{num_s},
+      base_tt{base_t},
+      pool{std::vector<char>(num_s)}
 {
-    for (char task = f_tok; task <= l_tok; ++task)
-        pool.push_back(task);
+    std::iota(std::begin(pool), std::end(pool), first_token);
 }
 
 int Task_mgr::get_task_time(char task) const
 {
-    return btt + 1 + task - f_tok;
+    return base_tt + 1 + task - first_token;
 }
 
 void Task_mgr::assign_task(char t)
@@ -94,7 +95,7 @@ void Task_mgr::assign_task(char t)
 void Task_mgr::advance_time()
 {
     std::for_each(std::begin(workers), std::end(workers),
-            [](auto& w) { if (w.time_left > 0) --w.time_left; });
+            [](auto& w) { w.dec_time(); });
 }
 
 bool Task_mgr::check_workers()
@@ -104,7 +105,7 @@ bool Task_mgr::check_workers()
 
     bool change = false;
     for (auto it = std::begin(workers); it != std::end(workers); )
-        if (it->time_left == 0) {
+        if (it->time_left <= 0) {
             done.push_back(it->task);
             change = true;
             it = workers.erase(it);
@@ -121,19 +122,20 @@ void Task_mgr::review_tasks(const std::vector<Step>& steps)
     pool.clear();
 
     for (const auto& s : steps) {
-        auto dit = std::find(std::begin(done), std::end(done), s.do_this);
+        auto dit = std::find(std::begin(done), std::end(done), s.prereq);
         if (dit == std::end(done)) {
-            auto rit = std::find(std::begin(ready), std::end(ready), s.before);
+            auto rit = std::find(std::begin(ready), std::end(ready),
+                                 s.step_token);
             if (rit != std::end(ready)) {
                 ready.erase(rit);
-                pool.push_back(s.before);
+                pool.push_back(s.step_token);
             }
         }
     }
 
     std::sort(std::rbegin(ready), std::rend(ready));
     for (auto it = std::rbegin(ready);
-            it != std::rend(ready) && workers.size() < max_w; ) {
+            it != std::rend(ready) && workers.size() < max_workers; ) {
         assign_task(*it);
         ++it;
         ready.pop_back();
@@ -174,12 +176,12 @@ int main()
     auto input = utils::get_input_lines();
     auto steps = parse_steps(input);
 
-    Task_mgr solo_mgr {1, 'A', 'Z'};
+    Task_mgr solo_mgr {1, 26};
     auto time1 = solo_mgr.run(steps);
     auto order1 = solo_mgr.get_order_string();
     std::cout << "Part 1: " << time1 << "s " << order1 << '\n';
 
-    Task_mgr group_mgr {5, 'A', 'Z', 60};
+    Task_mgr group_mgr {5, 26, 60};
     auto time2 = group_mgr.run(steps);
     auto order2 = group_mgr.get_order_string();
     std::cout << "Part 2: " << time2 << "s " << order2 << '\n';
