@@ -24,3 +24,6 @@ target_compile_features(day07 PRIVATE cxx_std_14)
 
 add_executable(day08 day08.cpp)
 target_compile_features(day08 PRIVATE cxx_std_14)
+
+add_executable(day09 day09.cpp)
+target_compile_features(day09 PRIVATE cxx_std_14)
