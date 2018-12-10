@@ -7,10 +7,12 @@
 #include <get_input.hpp>
 
 struct Light {
+    void advance() { x += dx; y += dy; }
+    void rewind()  { x -= dx; y -= dy; }
     int x, y, dx, dy;
 };
 
-auto parse_lights(const std::vector<std::string>& input)
+auto parse_light_input(const std::vector<std::string>& input)
 {
     std::vector<Light> vlights;
 
@@ -39,21 +41,16 @@ auto parse_lights(const std::vector<std::string>& input)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-class Grid {
-public:
-    Grid(const std::vector<Light>& vlights);
+struct Min_max {
+    explicit Min_max(const std::vector<Light>& vlights);
 
-    void print_sky() const;
-private:
-
-    int shift_x(int x) const { return x + std::abs(min_x); }
-    int shift_y(int y) const { return y + std::abs(min_y); }
+    int get_width()  const { return max_x - min_x; }
+    int get_height() const { return max_y - min_y; }
 
     int min_x, min_y, max_x, max_y;
-    std::vector<std::vector<char>> grid;
 };
 
-Grid::Grid(const std::vector<Light>& vlights)
+Min_max::Min_max(const std::vector<Light>& vlights)
 {
     min_x = std::min_element(std::begin(vlights), std::end(vlights),
             [](const Light& a, const Light& b) { return a.x < b.x; })->x;
@@ -63,11 +60,35 @@ Grid::Grid(const std::vector<Light>& vlights)
             [](const Light& a, const Light& b) { return a.x < b.x; })->x;
     max_y = std::max_element(std::begin(vlights), std::end(vlights),
             [](const Light& a, const Light& b) { return a.y < b.y; })->y;
+}
 
-    std::cout << min_x << ' ' << min_y << ' ' << max_x << ' ' << max_y << '\n';
-    grid.resize(max_y + 1 - min_y);
+bool operator<(const Min_max& a, const Min_max& b)
+{
+    return a.get_height() < b.get_height();
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+class Grid {
+public:
+    Grid(const std::vector<Light>& vlights);
+
+    void print_sky() const;
+private:
+
+    int shift_x(int x) const { return x - mm.min_x; }
+    int shift_y(int y) const { return y - mm.min_y; }
+
+    Min_max mm;
+    std::vector<std::vector<char>> grid;
+};
+
+Grid::Grid(const std::vector<Light>& vlights)
+    : mm{vlights}
+{
+    grid.resize(mm.max_y + 1 - mm.min_y);
     for (auto& vc : grid) {
-        vc.resize(max_x + 1 - min_x);
+        vc.resize(mm.max_x + 1 - mm.min_x);
         std::fill(std::begin(vc), std::end(vc), '.');
     }
 
@@ -87,108 +108,48 @@ void Grid::print_sky() const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-struct Min_max {
-    int get_width() const { return std::abs(min_x) + std::abs(max_x); }
-    int get_height() const { return std::abs(min_y) + std::abs(max_y); }
-    int min_x, min_y, max_x, max_y;
-};
-
-bool operator==(const Min_max& a, const Min_max& b)
-{
-    return a.min_x == b.min_x &&
-           a.min_y == b.min_y &&
-           a.max_x == b.max_x &&
-           a.max_y == b.max_y;
-}
-
-bool operator!=(const Min_max& a, const Min_max& b)
-{
-    return !(a == b);
-}
-
-bool operator<(const Min_max& a, const Min_max& b)
-{
-    return a.get_width() < b.get_width() &&
-           a.get_height() < b.get_height();
-}
-
-class Star_pattern {
+class Star_field {
 public:
-    Star_pattern(const std::vector<std::string>& input)
-        : vlights{parse_lights(input)} { mm = get_min_max(); }
+    Star_field(const std::vector<std::string>& input)
+        : vlights{parse_light_input(input)}, mm{vlights} { }
 
-    int time_till_smallest();
+    const std::vector<Light>& get_vlights() const { return vlights; }
 
-    std::vector<Light> get_vlights() const { return vlights; }
-    void advance_time();
-    void advance_time(int t);
-
+    int time_to_shortest();
 private:
-    Min_max get_min_max() const;
-    bool set_min_max_if_smaller();
-    void rewind_time();
+    void advance_all();
+    void rewind_all();
 
-    Min_max mm;
     std::vector<Light> vlights;
+    Min_max mm;
 };
 
-int Star_pattern::time_till_smallest()
+int Star_field::time_to_shortest()
 {
-    int time = 0;
+    int old_height, time_s = 0;
     do {
-        advance_time();
-        ++time;
-    } while (set_min_max_if_smaller());
-    rewind_time();
-    return time;
+        old_height = mm.get_height();
+        advance_all();
+        ++time_s;
+    } while (old_height > mm.get_height());
+    rewind_all();
+    --time_s;
+    
+    return time_s;
 }
 
-Min_max Star_pattern::get_min_max() const
+void Star_field::advance_all()
 {
-    Min_max temp;
-
-    temp.min_x = std::min_element(std::begin(vlights), std::end(vlights),
-            [](const Light& a, const Light& b) { return a.x < b.x; })->x;
-    temp.min_y = std::min_element(std::begin(vlights), std::end(vlights),
-            [](const Light& a, const Light& b) { return a.y < b.y; })->y;
-    temp.max_x = std::max_element(std::begin(vlights), std::end(vlights),
-            [](const Light& a, const Light& b) { return a.x < b.x; })->x;
-    temp.max_y = std::max_element(std::begin(vlights), std::end(vlights),
-            [](const Light& a, const Light& b) { return a.y < b.y; })->y;
-
-    return temp;
+    for (auto& l : vlights)
+        l.advance();
+    mm = Min_max{vlights};
 }
 
-bool Star_pattern::set_min_max_if_smaller()
+void Star_field::rewind_all()
 {
-    auto temp = get_min_max();
-    if (temp < mm) {
-        mm = temp;
-        return true;
-    }
-    return false;
-}
-
-void Star_pattern::advance_time()
-{
-    for (auto& l : vlights) {
-        l.x += l.dx;
-        l.y += l.dy;
-    }
-}
-
-void Star_pattern::advance_time(int t)
-{
-    while (--t)
-        advance_time();
-}
-
-void Star_pattern::rewind_time()
-{
-    for (auto& l : vlights) {
-        l.x -= l.dx;
-        l.y -= l.dy;
-    }
+    for (auto& l : vlights)
+        l.rewind();
+    mm = Min_max{vlights};
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -196,21 +157,17 @@ void Star_pattern::rewind_time()
 int main()
 {
     std::cout << "AoC 2018 Day 10 - The Stars Align\n";
-    std::ifstream ifs {"../inputs/input10.txt"};
+    std::string fname {"../inputs/input10.txt"};
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cout << "Could not open file: " << fname << '\n';
 
     auto input = utils::get_input_lines(ifs);
-    Star_pattern sp {input};
-    //auto time_s = sp.time_till_smallest();
-    sp.advance_time(10781);
-    for (std::string msg; std::cin >> msg; ) {
-        Grid grid {sp.get_vlights()};
-        grid.print_sky();
-        sp.advance_time();
-    }
-    /*
-    Grid grid {5, input};
-    grid.run();
-    */
+    Star_field sf {input};
+    auto time_s = sf.time_to_shortest();
+    Grid sky {sf.get_vlights()};
+    sky.print_sky();
+    std::cout << "Time till message: " << time_s << '\n';
 }
 /*
 std::string get_fname(int argc, char* argv[], const std::string& day)
