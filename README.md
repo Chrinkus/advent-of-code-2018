@@ -9,9 +9,9 @@ From the project root:
 $ mkdir build && cd build
 $ cmake ..
 $ make
-$ ./src/day01 < ../inputs/input01.txt
+$ ./src/day01 [-t]
 ```
 
-The last line shows how to build the solution for day 1. The `build/src/` subdirectory will hold all of the available solutions. Currently I am supplying the input through the input redirection operator. This allows me to swap to test inputs easier though I may implement flag support to choose test or normal input.
+The last line shows how to build the solution for day 1. The `build/src/` subdirectory will hold all of the available solutions. The standard input will be used if called as above. Enter the test flag `-t` to run the solution with test input.
 
 Alternate solutions (or horrendously hackey solutions) will be saved in the `scratch/` folder for archival purposes. These will not be built automatically and are not even guaranteed to compile. I'm considering renaming the folder to `boneyard/`.
