@@ -154,32 +154,14 @@ void Star_field::rewind_all()
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 10 - The Stars Align\n";
-    std::string fname {"../inputs/input10.txt"};
-    std::ifstream ifs {fname};
-    if (!ifs)
-        std::cout << "Could not open file: " << fname << '\n';
 
-    auto input = utils::get_input_lines(ifs);
+    auto input = utils::get_input_lines(argc, argv, "10");
     Star_field sf {input};
     auto time_s = sf.time_to_shortest();
     Grid sky {sf.get_vlights()};
     sky.print_sky();
     std::cout << "Time till message: " << time_s << '\n';
 }
-/*
-std::string get_fname(int argc, char* argv[], const std::string& day)
-{
-    if (argc == 1)
-        return "../inputs/input" + day + ".txt";
-
-    std::vector<std::string> varg {argv, argv + argc};
-
-    if (argc == 2 && varg[1] == "-t")
-        return "../inputs/test-input" + day + ".txt";
-
-    return varg[1];
-}
-*/

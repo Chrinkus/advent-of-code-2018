@@ -3,6 +3,9 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <regex>
+
+#include <get_input.hpp>
 
 template<typename Iter>
 void circular_inc(Iter first, Iter last, int inc, Iter& it)
@@ -21,6 +24,25 @@ void circular_dec(Iter first, Iter last, int dec, Iter& it)
         if (it == first)
             it = last;
         --it;
+    }
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+struct Game_params {
+    explicit Game_params(const std::string& desc);
+    int players, marbles;
+};
+
+Game_params::Game_params(const std::string& description)
+{
+    static const std::regex pat {R"(^(\d+).*\s(\d+)\spoints$)"};
+    std::smatch matches;
+    if (std::regex_match(description, matches, pat)) {
+        players = std::stoi(matches[1]);
+        marbles = std::stoi(matches[2]);
+    } else {
+        std::cerr << "Error: could not extract data from text\n";
     }
 }
 
@@ -59,18 +81,13 @@ int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 9 - Marble Mania\n";
 
-    if (argc < 3) {
-        std::cout << "Need number of players and marbles\n";
-        return 1;
-    }
+    auto input = utils::get_input_string(argc, argv, "09");
 
-    auto input = std::vector<std::string>{argv, argv + argc};
-    auto players = std::stoi(input[1]);
-    auto marbles = std::stoi(input[2]);
+    auto gp = Game_params{input};
 
-    auto part1 = play_marbles(players, marbles);
+    auto part1 = play_marbles(gp.players, gp.marbles);
     std::cout << "Part 1: " << part1 << '\n';
 
-    auto part2 = play_marbles(players, marbles * 100);
+    auto part2 = play_marbles(gp.players, gp.marbles * 100);
     std::cout << "Part 2: " << part2 << '\n';
 }
