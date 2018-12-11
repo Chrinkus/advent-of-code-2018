@@ -1,43 +1,79 @@
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <vector>
 
 namespace utils {
 
-auto get_input_string(std::istream& is = std::cin)
+auto get_fname(int argc, char* argv[], const std::string& day)
 {
+    if (argc == 1)
+        return "../inputs/input" + day + ".txt";
+
+    std::vector<std::string> vargs {argv, argv + argc};
+
+    if (argc == 2 && vargs[1] == "-t")
+        return "../inputs/test-input" + day + ".txt";
+
+    return vargs[1];
+}
+
+template<typename ...Args>
+auto get_input_string(const Args& ...args)
+{
+    std::string fname = get_fname(args...);
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cerr << "Error: could not read from file: " << fname << '\n';
+
     std::string line;
-    std::getline(is, line);
+    std::getline(ifs, line);
     return line;
 }
 
-auto get_input_lines(std::istream& is = std::cin)
+template<typename ...Args>
+auto get_input_lines(const Args& ...args)
 {
+    std::string fname = get_fname(args...);
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cerr << "Error: could not read from file: " << fname << '\n';
+
     std::vector<std::string> vs;
     std::string line;
-    while (std::getline(is, line))
+    while (std::getline(ifs, line))
         vs.push_back(std::move(line));
 
     return vs;
 }
 
-template<typename T>
-auto get_input_values(std::istream& is = std::cin)
+template<typename T, typename ...Args>
+auto get_input_values(const Args& ...args)
 {
+    std::string fname = get_fname(args...);
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cerr << "Error: could not read from file: " << fname << '\n';
+
     std::vector<T> vt;
-    for (T val; is >> val; )
+    for (T val; ifs >> val; )
         vt.push_back(val);
 
     return vt;
 }
 
-template<typename T>
-auto get_input_value_matrix(std::istream& is = std::cin, size_t s_hint = 100)
+template<typename T, typename ...Args>
+auto get_input_value_matrix(const Args& ...args, size_t s_hint = 100)
 {
+    std::string fname = get_fname(args...);
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cerr << "Error: could not read from file: " << fname << '\n';
+
     std::vector<std::vector<T>> vvt;
     vvt.reserve(s_hint);                // reallocations could get heavy
 
-    for (std::string line; std::getline(is, line); ) {
+    for (std::string line; std::getline(ifs, line); ) {
         std::vector<T> vt;
 
         std::istringstream iss {line};
