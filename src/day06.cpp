@@ -227,11 +227,11 @@ int Grid::get_safe_region_size() const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 6 - Chronal Coordinates\n";
 
-    auto input = utils::get_input_lines();
+    auto input = utils::get_input_lines(argc, argv, "06");
     auto grid = Grid{input};
 
     auto part1 = grid.max_finite_area();

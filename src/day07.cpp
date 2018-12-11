@@ -169,11 +169,11 @@ std::string Task_mgr::get_order_string() const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 7 - The Sum of Its Parts\n";
 
-    auto input = utils::get_input_lines();
+    auto input = utils::get_input_lines(argc, argv, "07");
     auto steps = parse_steps(input);
 
     Task_mgr solo_mgr {1, 26};

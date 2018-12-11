@@ -180,11 +180,11 @@ const auto& find_most_reg_sleeper(const Guard_sleep_map& gsm)
     return *gsm.at(it->id);    // at at at... for const access~!
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 4 - Repose Record\n";
 
-    auto input = utils::get_input_lines();
+    auto input = utils::get_input_lines(argc, argv, "04");
     std::sort(std::begin(input), std::end(input));
 
     auto gsm = map_sleep_data(input);

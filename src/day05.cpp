@@ -71,11 +71,11 @@ int get_shortest_length(const std::string& s)
     return *it_min;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 5 - Alchemical Reduction\n";
 
-    auto input = utils::get_input_string();
+    auto input = utils::get_input_string(argc, argv, "05");
 
     auto part1 = react_polymer(input);
     std::cout << "Part 1: " << part1 << '\n';

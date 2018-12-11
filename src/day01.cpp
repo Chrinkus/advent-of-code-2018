@@ -22,9 +22,10 @@ int find_duplicate(const std::vector<int>& vi)
         }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    auto vi = utils::get_input_values<int>();
+    std::cout << "AoC 2018 Day 1 - Chronal Calibration\n";
+    auto vi = utils::get_input_values<int>(argc, argv, "01");
 
     auto part1 = std::accumulate(std::begin(vi), std::end(vi), 0);
     std::cout << "Part 1: " << part1 << '\n';

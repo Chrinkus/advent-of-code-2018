@@ -107,11 +107,11 @@ int Tree::get_root_val() const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-int main()
+int main(int argc, char* argv[])
 {
     std::cout << "AoC 2018 Day 8 - Memory Maneuver\n";
 
-    auto input = utils::get_input_values<int>();
+    auto input = utils::get_input_values<int>(argc, argv, "08");
     auto tree = Tree{input};
 
     auto part1 = tree.get_meta_sum();

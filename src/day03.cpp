@@ -71,9 +71,10 @@ int find_intact_id(const std::vector<Claim>& vc, const Fabric& fab)
     return 0;       // no swaths are intact
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    auto claims = utils::get_input_values<Claim>();
+    std::cout << "AoC 2018 Day 3 - No Matter How You Slice It\n";
+    auto claims = utils::get_input_values<Claim>(argc, argv, "03");
     auto fabric = map_claims(claims);
 
     auto part1 = count_overlaps(fabric);

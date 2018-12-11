@@ -64,9 +64,10 @@ std::string find_almost_match(const std::vector<std::string>& vs)
     return "Error: could not find near match\n";
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    auto input = utils::get_input_lines();
+    std::cout << "AoC 2018 Day 2 - Inventory Management System\n";
+    auto input = utils::get_input_lines(argc, argv, "02");
 
     auto part1 = get_checksum(input);
     std::cout << "Part 1: " << part1 << '\n';
