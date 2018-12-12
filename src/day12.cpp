@@ -34,9 +34,10 @@ public:
     Plant_plan(std::string init, std::vector<Growth_condition> vcond)
         : state{std::move(init)}, conditions{std::move(vcond)} { }
 
-    int sum_plant_pots() const;
+    int64_t sum_plant_pots() const;
+    const std::string& get_state() const { return state; }
 
-    void advance_year(int n) { while (--n) advance_year(); }
+    void advance_year(int64_t n) { while (n--) advance_year(); }
 private:
     void advance_year();
 
@@ -48,6 +49,14 @@ private:
 void Plant_plan::advance_year()
 {
     // pad state if needed
+    /*
+    if (state.front() == '#') {
+        state.insert(0, 5, '.');
+        zero_offset += 5;
+    }
+    if (state.back() == '#')
+        state.append(5, '.');
+    */
     auto it = std::find(std::begin(state), std::end(state), '#');
     if (std::distance(std::begin(state), it) < 5) {
         state.insert(0, 5, '.');
@@ -58,7 +67,7 @@ void Plant_plan::advance_year()
     if (std::distance(rit, std::rbegin(state)) < 5)
         state.append(5, '.');
 
-    std::string next_year {state.size(), '.'};
+    std::string next_year(state.size(), '.');
     for (size_t i = 0; i < state.size() - 5; ++i) {
 
         auto cit = std::find_if(std::begin(conditions), std::end(conditions),
@@ -72,9 +81,9 @@ void Plant_plan::advance_year()
     state = next_year;
 }
 
-int Plant_plan::sum_plant_pots() const
+int64_t Plant_plan::sum_plant_pots() const
 {
-    int total = 0;
+    int64_t total = 0;
     for (size_t i = 0; i < state.size(); ++i)
         if (state[i] == '#')
             total += i - zero_offset;
@@ -115,6 +124,7 @@ int main(int argc, char* argv[])
     auto input = utils::get_input_lines(argc, argv, "12");
     Plant_plan plan = parse_input(input);
     plan.advance_year(20);
+    //plan.advance_year(50000000000);
     auto part1 = plan.sum_plant_pots();
     std::cout << "Part 1: " << part1 << '\n';
 }
