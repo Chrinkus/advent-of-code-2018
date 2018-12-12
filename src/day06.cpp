@@ -217,12 +217,12 @@ void Grid::paint_safe_region(int area)
 
 int Grid::get_safe_region_size() const
 {
-    int count = 0;
+    int size = 0;
     for (const auto& row : grid)
-        for (const auto c : row)
-            if (c == '#')
-                ++count;
-    return count;
+        size += std::count_if(std::begin(row), std::end(row),
+                [](const auto t) { return t == '#'; });
+
+    return size;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
