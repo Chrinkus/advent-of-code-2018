@@ -37,8 +37,9 @@ public:
     int64_t sum_plant_pots() const;
     const std::string& get_state() const { return state; }
 
-    void advance_year(int64_t n) { while (n--) advance_year(); }
+    int64_t advance_year(int64_t n);
 private:
+    void prep_state();
     void advance_year();
 
     int zero_offset = 0;
@@ -46,26 +47,29 @@ private:
     std::vector<Growth_condition> conditions;
 };
 
-void Plant_plan::advance_year()
+void Plant_plan::prep_state()
 {
-    // pad state if needed
-    /*
-    if (state.front() == '#') {
-        state.insert(0, 5, '.');
-        zero_offset += 5;
-    }
-    if (state.back() == '#')
-        state.append(5, '.');
-    */
+    const int dist_const = 4;
+
     auto it = std::find(std::begin(state), std::end(state), '#');
-    if (std::distance(std::begin(state), it) < 5) {
-        state.insert(0, 5, '.');
-        zero_offset += 5;
+    int dist = std::distance(std::begin(state), it);
+    if (dist < dist_const) {
+        state.insert(0, dist_const - dist, '.');
+        zero_offset += dist_const - dist;
+    } else {
+        state.erase(0, dist - dist_const);
+        zero_offset -= dist - dist_const;
     }
 
     auto rit = std::find(std::rbegin(state), std::rend(state), '#');
-    if (std::distance(rit, std::rbegin(state)) < 5)
-        state.append(5, '.');
+    if ((dist = std::distance(std::rbegin(state), rit)) < dist_const) {
+        state.append(dist_const - dist, '.');
+    }
+}
+
+void Plant_plan::advance_year()
+{
+    prep_state();
 
     std::string next_year(state.size(), '.');
     for (size_t i = 0; i < state.size() - 5; ++i) {
@@ -81,7 +85,26 @@ void Plant_plan::advance_year()
     state = next_year;
 }
 
+int64_t Plant_plan::advance_year(int64_t n)
+{
+    int64_t this_year, last_year, this_diff = 0, last_diff = -1;
+
+    while (this_diff != last_diff && n--) {
+        advance_year();
+        last_year = this_year;
+        this_year = sum_plant_pots();
+        last_diff = this_diff;
+        this_diff = this_year - last_year;
+    }
+
+    int64_t total = sum_plant_pots();
+    while (n-- > 0)
+        total += this_diff;
+    return total;
+}
+
 int64_t Plant_plan::sum_plant_pots() const
+    // not sure how to use std::accumulate here. need 'i'.
 {
     int64_t total = 0;
     for (size_t i = 0; i < state.size(); ++i)
@@ -122,10 +145,13 @@ int main(int argc, char* argv[])
     std::cout << "AoC 2018 Day 12 - Subterranean Sustainability\n";
 
     auto input = utils::get_input_lines(argc, argv, "12");
-    Plant_plan plan = parse_input(input);
-    plan.advance_year(20);
-    //plan.advance_year(50000000000);
-    auto part1 = plan.sum_plant_pots();
+
+    Plant_plan plan1 = parse_input(input);
+    auto part1 = plan1.advance_year(20);
     std::cout << "Part 1: " << part1 << '\n';
+
+    Plant_plan plan2 = parse_input(input);
+    auto part2 = plan2.advance_year(50000000000);
+    std::cout << "Part 2: " << part2 << '\n';
 }
 
