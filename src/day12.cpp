@@ -87,7 +87,8 @@ void Plant_plan::advance_year()
 
 int64_t Plant_plan::advance_year(int64_t n)
 {
-    int64_t this_year, last_year, this_diff = 0, last_diff = -1;
+    int64_t this_year, last_year, this_diff, last_diff = -1;
+    this_year = last_year = this_diff = 0;
 
     while (this_diff != last_diff && n--) {
         advance_year();
