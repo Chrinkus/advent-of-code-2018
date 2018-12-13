@@ -22,7 +22,7 @@ Turn operator++(Turn& t)
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 enum class Orientation { up = '^', right = '>', down = 'v', left = '<',
-                         crash = 'x' };
+                         crash = 'X' };
 
 Orientation operator++(Orientation& o)
 {
@@ -40,7 +40,7 @@ Orientation operator++(Orientation& o)
         o = Orientation::up;
         break;
     case Orientation::crash:
-        break;
+        break;      // don't change crash
     }
     return o;
 }
@@ -61,7 +61,7 @@ Orientation operator--(Orientation& o)
         o = Orientation::down;
         break;
     case Orientation::crash:
-        break;
+        break;      // don't change crash
     }
     return o;
 }
@@ -70,82 +70,106 @@ Orientation operator--(Orientation& o)
 
 class Cart {
 public:
-    Cart(int x, int y, Orientation o) : xx{x}, yy{y}, ff{o}
-    {
-        switch (ff) {
-        case Orientation::up:
-        case Orientation::down:
-            current = '|';
-            break;
-        case Orientation::left:
-        case Orientation::right:
-            current = '-';
-            break;
-        default:
-            // will never get here..
-            break;
-        }
-    }
+    Cart(int x, int y, Orientation o);
+
+    class Bad_orient {};
 
     int x() const { return xx; }
     int y() const { return yy; }
+    char look_ahead(std::vector<std::string>& trax) const;
     Orientation facing() const { return ff; }
+    char get_curr() const { return current; }
 
     char turn();
-    void advance();
+    void advance(std::vector<std::string>& trax, char look_ahead);
     void bend(char ahead);
     void crash() { ff = Orientation::crash; }
-    void set_curr(char curr) { current = curr; }
-    char get_curr() const { return current; }
+    char crash(std::vector<Cart>& carts);
 private:
     int xx, yy;
     Orientation ff;
-    char current = '\0';
+    char current = '\0';            // save track piece
     Turn next_turn = Turn::left;
 };
+
+Cart::Cart(int x, int y, Orientation o) : xx{x}, yy{y}, ff{o}
+{
+    switch (ff) {
+    case Orientation::up:
+    case Orientation::down:
+        current = '|';
+        break;
+    case Orientation::left:
+    case Orientation::right:
+        current = '-';
+        break;
+    default:
+        throw Bad_orient{};
+    }
+}
+
+char Cart::look_ahead(std::vector<std::string>& trax) const
+{
+    switch (ff) {
+    case Orientation::up:       return trax[yy-1][xx];
+    case Orientation::right:    return trax[yy][xx+1];
+    case Orientation::down:     return trax[yy+1][xx];
+    case Orientation::left:     return trax[yy][xx-1];
+    case Orientation::crash:    return '\0';
+    default:                    break; }
+}
 
 char Cart::turn()
 {
     char next_token = '\0';
 
     switch (next_turn) {
-    case Turn::left:      next_token = char(--ff);    break;
-    case Turn::straight:  next_token = char(ff);      break;
-    case Turn::right:     next_token = char(++ff);    break;
-    default:                                            break; }
+    case Turn::left:      next_token = char(--ff);  break;
+    case Turn::straight:  next_token = char(ff);    break;
+    case Turn::right:     next_token = char(++ff);  break;
+    default:                                        break; }
 
     ++next_turn;
     return next_token;
 }
 
-void Cart::advance()
+void Cart::advance(std::vector<std::string>& trax, char look_ahead)
 {
-    switch (ff) {
-    case Orientation::up:     --yy;    break;
-    case Orientation::right:  ++xx;    break;
-    case Orientation::down:   ++yy;    break;
-    case Orientation::left:   --xx;    break;
-    default:                            break; }
+    trax[yy][xx] = current;                     // replace track token
+    current = look_ahead;
+
+    switch (ff) {                               // move
+    case Orientation::up:     --yy; break;
+    case Orientation::right:  ++xx; break;
+    case Orientation::down:   ++yy; break;
+    case Orientation::left:   --xx; break;
+    default:                        break; }
+
+    trax[yy][xx] = static_cast<char>(ff);       // put self on track
 }
 
 void Cart::bend(char ahead)
 {
     switch (ff) {
-    case Orientation::up:
-        ahead == '/' ? ++ff : --ff;
-        break;
-    case Orientation::right:
-        ahead == '/' ? --ff : ++ff;
-        break;
-    case Orientation::down:
-        ahead == '/' ? ++ff : --ff;
-        break;
-    case Orientation::left:
-        ahead == '/' ? --ff : ++ff;
-        break;
-    default:
-        break;
-    }
+    case Orientation::up:       ahead == '/' ? ++ff : --ff;     break;
+    case Orientation::right:    ahead == '/' ? --ff : ++ff;     break;
+    case Orientation::down:     ahead == '/' ? ++ff : --ff;     break;
+    case Orientation::left:     ahead == '/' ? --ff : ++ff;     break;
+    default:                                                    break; }
+}
+
+char Cart::crash(std::vector<Cart>& carts)
+{
+    ff = Orientation::crash;
+
+    auto it = std::find_if(std::begin(carts), std::end(carts),
+            [this](auto& cart) {
+                return cart.facing() != this->facing() &&
+                       cart.x() == this->x() &&
+                       cart.y() == this->y();
+            });
+    it->crash();
+    return it->get_curr();
 }
 
 bool operator<(const Cart& a, const Cart& b)
@@ -168,70 +192,46 @@ auto map_carts(const std::vector<std::string>& trax)
     for (size_t i = 0; i < trax.size(); ++i)
         for (size_t j = 0; j < trax[i].size(); ++j)
             if (cart_symbols.find(trax[i][j]) != std::string::npos)
-                carts.emplace_back(Cart{j, i, Orientation(trax[i][j])});
-
-    for (const auto& cart : carts)
-        std::cout << cart << '\n';
+                carts.emplace_back(Cart{int(j), int(i),
+                                        Orientation(trax[i][j])});
 
     return carts;
 }
 
 bool advance_tick(std::vector<std::string>& trax, std::vector<Cart>& carts)
 {
+    bool any_crashes = false;
+
     std::sort(std::begin(carts), std::end(carts));
 
     for (auto& cart : carts) {
-        //std::cout << "Ticking.. " << cart << '\n';
-        char look_ahead = '\0';
-        switch (cart.facing()) {
-        case Orientation::up:
-            look_ahead = trax[cart.y()-1][cart.x()];
-            break;
-        case Orientation::right:
-            look_ahead = trax[cart.y()][cart.x()+1];
-            break;
-        case Orientation::down:
-            look_ahead = trax[cart.y()+1][cart.x()];
-            break;
-        case Orientation::left:
-            look_ahead = trax[cart.y()][cart.x()-1];
-            break;
-        default:
-            break;
-        }
+
+        char look_ahead = cart.look_ahead(trax);
 
         switch (look_ahead) {
         case '-':
         case '|':
-            trax[cart.y()][cart.x()] = cart.get_curr();
-            cart.set_curr(look_ahead);
-            cart.advance();
-            trax[cart.y()][cart.x()] = char(cart.facing());
+            cart.advance(trax, look_ahead);
             break;
         case '/':
         case '\\':
-            trax[cart.y()][cart.x()] = cart.get_curr();
-            cart.set_curr(look_ahead);
-            cart.advance();
-            trax[cart.y()][cart.x()] = char(cart.facing());
+            cart.advance(trax, look_ahead);
             cart.bend(look_ahead);
             break;
         case '+':
-            trax[cart.y()][cart.x()] = cart.get_curr();
-            cart.set_curr(look_ahead);
-            cart.advance();
-            trax[cart.y()][cart.x()] = char(cart.facing());
+            cart.advance(trax, look_ahead);
             cart.turn();
             break;
         case '^':
         case 'v':
         case '<':
         case '>':
-            trax[cart.y()][cart.x()] = cart.get_curr();
-            cart.advance();
-            trax[cart.y()][cart.x()] = 'X';
-            cart.crash();
-            return true;
+            cart.advance(trax, look_ahead);
+            trax[cart.y()][cart.x()] = cart.crash(carts);
+            any_crashes = true;
+            break;
+        case '\0':
+            break;
         default:
             std::cerr << "Somehow got off the tracks with: "
                       << cart << '\n';
@@ -240,7 +240,13 @@ bool advance_tick(std::vector<std::string>& trax, std::vector<Cart>& carts)
         }
     }
 
-    return false;
+    if (any_crashes)
+        carts.erase(std::remove_if(std::begin(carts), std::end(carts),
+                [](auto& cart) {
+                    return cart.facing() == Orientation::crash;
+                }), std::end(carts));
+
+    return any_crashes;
 }
 
 std::string find_crash(const std::vector<Cart>& carts)
@@ -260,12 +266,17 @@ int main(int argc, char* argv[])
 
     auto trax = utils::get_input_lines(argc, argv, "13");
     auto cartz = map_carts(trax);
+    /*
     while (!advance_tick(trax, cartz))
         ;
     auto part1 = find_crash(cartz);
     std::cout << "Part 1: " << part1 << '\n';
-    /*
-    for (const auto& t : trax)
-        std::cout << t << '\n';
     */
+
+    while (cartz.size() > 1) {
+        std::cout << "Number of carts: " << cartz.size() << '\n';
+        advance_tick(trax, cartz);
+    }
+    auto part2 = cartz.front();
+    std::cout << "Part 2: " << part2 << '\n';
 }
