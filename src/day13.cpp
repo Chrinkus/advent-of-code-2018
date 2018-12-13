@@ -7,7 +7,9 @@
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-class Off_tracks {};
+class Off_tracks {};            // cart off track error
+class Ghost_crash{};            // crash with missing cart error
+class Bad_orient{};             // somehow tried to make cart out of not a cart
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -71,8 +73,6 @@ Orientation operator--(Orientation& o)
 class Cart {
 public:
     Cart(int x, int y, Orientation o);
-
-    class Bad_orient {};
 
     int x() const { return xx; }
     int y() const { return yy; }
@@ -164,10 +164,14 @@ char Cart::crash(std::vector<Cart>& carts)
 
     auto it = std::find_if(std::begin(carts), std::end(carts),
             [this](auto& cart) {
-                return cart.facing() != this->facing() &&
+                return cart.facing() != Orientation::crash &&
                        cart.x() == this->x() &&
                        cart.y() == this->y();
             });
+
+    if (it == std::end(carts))
+        throw Ghost_crash{};
+
     it->crash();
     return it->get_curr();
 }
@@ -274,7 +278,7 @@ int main(int argc, char* argv[])
     */
 
     while (cartz.size() > 1) {
-        std::cout << "Number of carts: " << cartz.size() << '\n';
+        //std::cout << "Number of carts: " << cartz.size() << '\n';
         advance_tick(trax, cartz);
     }
     auto part2 = cartz.front();
