@@ -178,7 +178,8 @@ char Cart::crash(std::vector<Cart>& carts)
 
 bool operator<(const Cart& a, const Cart& b)
 {
-    return a.y() <= b.y() && a.x() < b.x();
+    return a.y() < b.y() ||
+           (a.y() == b.y() && a.x() < b.x());
 }
 
 std::ostream& operator<<(std::ostream& os, const Cart& c)
