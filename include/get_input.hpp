@@ -48,6 +48,19 @@ auto get_input_lines(const Args& ...args)
 }
 
 template<typename T, typename ...Args>
+auto get_input_value(const Args& ...args)
+{
+    std::string fname = get_fname(args...);
+    std::ifstream ifs {fname};
+    if (!ifs)
+        std::cerr << "Error: could not read from file: " << fname << '\n';
+
+    T t;
+    ifs >> t;
+    return t;
+}
+
+template<typename T, typename ...Args>
 auto get_input_values(const Args& ...args)
 {
     std::string fname = get_fname(args...);
