@@ -5,21 +5,23 @@
 
 #include <get_input.hpp>
 
+const size_t big_size = 1'000'000'000;
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 class Elf {
 public:
     explicit Elf(size_t index) : curr_i{index} { }
 
-    size_t get_next_recipe(const std::vector<int>& recipes);
+    void set_next_recipe(const std::vector<int>& recipes);
     size_t get_curr_i() const { return curr_i; }
 private:
     size_t curr_i;
 };
 
-inline size_t Elf::get_next_recipe(const std::vector<int>& recipes)
+inline void Elf::set_next_recipe(const std::vector<int>& recipes)
 {
-    return (curr_i = (curr_i + 1 + recipes[curr_i]) % recipes.size());
+    curr_i = (curr_i + 1 + recipes[curr_i]) % recipes.size();
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -33,7 +35,9 @@ private:
 public:
     Kitchen()
         : orvar{0}, tilda{1}, recipes{std::vector<int>{ 3, 7 }}
-    { }
+    {
+        recipes.reserve(big_size);
+    }
 
     void run(size_t target);
     size_t get_next_10_scores(size_t from);
@@ -79,13 +83,10 @@ size_t Kitchen::r_till_seq(size_t sequence)
     std::transform(std::begin(str_seq), std::end(str_seq), std::begin(vseq),
             [](auto ch) { return ch - '0'; });
 
-    //run(vseq.size());
-
-    while (recipes.size() < 1000000000) {
+    while (recipes.size() < big_size) {
         cook();
         assign_new_recipes();
     }
-    std::cout << "searching...\n";
     auto it = std::search(std::begin(recipes), std::end(recipes),
                           std::begin(vseq), std::end(vseq));
     if (it != std::end(recipes))
@@ -105,8 +106,8 @@ void Kitchen::cook()
 
 void Kitchen::assign_new_recipes()
 {
-    orvar.get_next_recipe(recipes);
-    tilda.get_next_recipe(recipes);
+    orvar.set_next_recipe(recipes);
+    tilda.set_next_recipe(recipes);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -119,8 +120,6 @@ int main(int argc, char* argv[])
 
     Kitchen k;
     k.run(input);
-
-    //k.print();
 
     auto part1 = k.get_next_10_scores(input);
     std::cout << "Part 1: " << part1 << '\n';
