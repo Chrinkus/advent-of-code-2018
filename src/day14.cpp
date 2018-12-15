@@ -5,7 +5,7 @@
 
 #include <get_input.hpp>
 
-const size_t big_size = 1'000'000'000;
+const size_t big_size = 6'000'000;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -83,6 +83,23 @@ size_t Kitchen::r_till_seq(size_t sequence)
     std::transform(std::begin(str_seq), std::end(str_seq), std::begin(vseq),
             [](auto ch) { return ch - '0'; });
 
+    while (true) {
+        do {
+            cook();
+            assign_new_recipes();
+        } while (recipes.size() < recipes.capacity());
+
+        auto it = std::search(std::begin(recipes), std::end(recipes),
+                              std::begin(vseq), std::end(vseq));
+        if (it != std::end(recipes))
+            return std::distance(std::begin(recipes), it);
+        std::cout << "reallocation...\n";
+        /*
+        else
+            recipes.reserve(recipes.size() * 2);
+            */
+    }
+    /*
     while (recipes.size() < big_size) {
         cook();
         assign_new_recipes();
@@ -93,6 +110,7 @@ size_t Kitchen::r_till_seq(size_t sequence)
         return std::distance(std::begin(recipes), it);
     else
         return 0;
+    */
 }
 
 void Kitchen::cook()
