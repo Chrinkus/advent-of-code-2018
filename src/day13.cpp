@@ -110,13 +110,17 @@ Cart::Cart(int x, int y, Orientation o) : xx{x}, yy{y}, ff{o}
 
 char Cart::look_ahead(std::vector<std::string>& trax) const
 {
+    char token = '\0';
+
     switch (ff) {
-    case Orientation::up:       return trax[yy-1][xx];
-    case Orientation::right:    return trax[yy][xx+1];
-    case Orientation::down:     return trax[yy+1][xx];
-    case Orientation::left:     return trax[yy][xx-1];
-    case Orientation::crash:    return '\0';
-    default:                    break; }
+    case Orientation::up:       token = trax[yy-1][xx]; break;
+    case Orientation::right:    token = trax[yy][xx+1]; break;
+    case Orientation::down:     token = trax[yy+1][xx]; break;
+    case Orientation::left:     token = trax[yy][xx-1]; break;
+    case Orientation::crash:    token = '\0';           break;
+    default:                                            break; }
+
+    return token;
 }
 
 char Cart::turn()

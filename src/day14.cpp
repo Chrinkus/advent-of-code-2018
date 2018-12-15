@@ -80,7 +80,7 @@ inline void Kitchen::assign_new_recipes()
 
 int main(int argc, char* argv[])
 {
-    std::cout << "AoC 2018 Day 14 - Not Permutations\n";
+    std::cout << "AoC 2018 Day 14 - Chocolate Charts\n";
 
     auto input = utils::get_input_string(argc, argv, "14");
     auto k = Kitchen{};
