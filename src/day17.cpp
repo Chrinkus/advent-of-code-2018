@@ -6,8 +6,8 @@
 
 #include <get_input.hpp>
 
+class No_spring{};      // errors for throwing
 class Bad_input{};
-class No_spring{};
 class Bad_fall{};
 class Bad_flow{};
 
@@ -55,18 +55,18 @@ auto parse_input(const std::vector<std::string>& input)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-class Ground_slice {
+class Ground_scan {
 private:
     int min_x, min_y, max_x, max_y; 
-    std::vector<std::string> slice;
+    std::vector<std::string> scan;
 public:
-    explicit Ground_slice(const std::vector<Vein>& vd);
+    explicit Ground_scan(const std::vector<Vein>& vd);
 
     void water_falls_like_rain_through_the_earth();
 
     int tally_watered() const;
     int tally_reserves() const;
-    void print_slice(std::ostream& os = std::cout) const;
+    void print_scan(std::ostream& os = std::cout) const;
 private:
     void fall(int level, int x);
     bool flow(int level, int x, int inc);
@@ -76,7 +76,7 @@ private:
     int shift_y(int y) const { return y - min_y; }
 };
 
-Ground_slice::Ground_slice(const std::vector<Vein>& vd)
+Ground_scan::Ground_scan(const std::vector<Vein>& vd)
 {
     min_x = std::min_element(std::begin(vd), std::end(vd),
             [](const auto& a, const auto& b) {
@@ -102,31 +102,31 @@ Ground_slice::Ground_slice(const std::vector<Vein>& vd)
     if (500 < min_x || max_x < 500)
         throw No_spring{};
 
-    slice.resize(max_y + 1 - min_y);
-    for (auto& row : slice) {
+    scan.resize(max_y + 1 - min_y);
+    for (auto& row : scan) {
         row.resize(max_x + 1 - min_x);
         std::fill(std::begin(row), std::end(row), '.');     // fill w/sand
     }
 
-    slice[0][shift_x(500)] = '+';                           // place spring
+    scan[0][shift_x(500)] = '+';                           // place spring
 
     for (const auto& v : vd) {
         for (int y = v.start.y; y <= v.end.y; ++y)
             for (int x = v.start.x; x <= v.end.x; ++x)
-                slice[shift_y(y)][shift_x(x)] = '#';
+                scan[shift_y(y)][shift_x(x)] = '#';
     }
 }
 
-void Ground_slice::print_slice(std::ostream& os) const
+void Ground_scan::print_scan(std::ostream& os) const
 {
-    for (const auto row : slice) {
+    for (const auto row : scan) {
         for (const auto c : row)
             os << c;
         os << '\n';
     }
 }
 
-void Ground_slice::water_falls_like_rain_through_the_earth()
+void Ground_scan::water_falls_like_rain_through_the_earth()
 {
     int level = 1;
     int x = shift_x(500);
@@ -134,10 +134,10 @@ void Ground_slice::water_falls_like_rain_through_the_earth()
     fall(level, x);
 }
 
-int Ground_slice::tally_watered() const
+int Ground_scan::tally_watered() const
 {
     std::vector<int> vwatered;
-    for (const auto& row : slice) {
+    for (const auto& row : scan) {
         vwatered.push_back(
                 std::count_if(std::begin(row), std::end(row),
                     [](const auto ch) { return ch == '|' || ch == '~'; })
@@ -147,10 +147,10 @@ int Ground_slice::tally_watered() const
     return std::accumulate(std::begin(vwatered), std::end(vwatered), 0);
 }
 
-int Ground_slice::tally_reserves() const
+int Ground_scan::tally_reserves() const
 {
     std::vector<int> vwatered;
-    for (const auto& row : slice) {
+    for (const auto& row : scan) {
         vwatered.push_back(
                 std::count_if(std::begin(row), std::end(row),
                     [](const auto ch) { return ch == '~'; })
@@ -160,16 +160,16 @@ int Ground_slice::tally_reserves() const
     return std::accumulate(std::begin(vwatered), std::end(vwatered), 0);
 }
 
-void Ground_slice::fall(int level, int x)
+void Ground_scan::fall(int level, int x)
 {
-    if (level >= slice.size())
+    if (level >= static_cast<int>(scan.size()))
         return;
 
     bool left = false, right = false;
 
-    switch (slice[level][x]) {
+    switch (scan[level][x]) {
     case '.':                                   // sand
-        slice[level][x] = '|';                     
+        scan[level][x] = '|';                     
         return fall(level + 1, x);
     case '~':                                   // fall into filled resevoir
     case '#':                                   // hit clay
@@ -187,13 +187,13 @@ void Ground_slice::fall(int level, int x)
     }
 }
 
-bool Ground_slice::flow(int level, int x, int inc)
+bool Ground_scan::flow(int level, int x, int inc)
 {
-    switch (slice[level][x]) {
+    switch (scan[level][x]) {
     case '|':
     case '.':
-        slice[level][x] = '|';
-        switch (slice[level+1][x]) {
+        scan[level][x] = '|';
+        switch (scan[level+1][x]) {
         case '.':
             fall(level + 1, x);
             return false;
@@ -208,19 +208,19 @@ bool Ground_slice::flow(int level, int x, int inc)
     case '#':
         return true;
     default:
-        std::cerr << "Bad flow: " << slice[level][x]
+        std::cerr << "Bad flow: " << scan[level][x]
                   << " level: " << level << " x: " << x << '\n';
         throw Bad_flow{};
     }
 }
 
-void Ground_slice::fill(int level, int x)
+void Ground_scan::fill(int level, int x)
 {
     int xl = x - 1, xr = x;
-    while (slice[level][xl] == '|')
-        slice[level][xl--] = '~';
-    while (slice[level][xr] == '|')
-        slice[level][xr++] = '~';
+    while (scan[level][xl] == '|')
+        scan[level][xl--] = '~';
+    while (scan[level][xr] == '|')
+        scan[level][xr++] = '~';
     return fall(--level, x);
 }
 
@@ -233,7 +233,7 @@ int main(int argc, char* argv[])
     auto input = utils::get_input_lines(argc, argv, "17");
 
     auto vein_data = parse_input(input);
-    Ground_slice gs {vein_data};
+    Ground_scan gs {vein_data};
     gs.water_falls_like_rain_through_the_earth();
 
     auto part1 = gs.tally_watered();
