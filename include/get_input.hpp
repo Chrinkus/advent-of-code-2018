@@ -26,9 +26,12 @@ auto get_input_string(const Args& ...args)
     if (!ifs)
         std::cerr << "Error: could not read from file: " << fname << '\n';
 
-    std::string line;
-    std::getline(ifs, line);
-    return line;
+    std::string contents;
+    ifs.seekg(0, std::ios::end);
+    contents.resize(ifs.tellg());
+    ifs.seekg(0, std::ios::beg);
+    ifs.read(&contents[0], contents.size());
+    return contents;
 }
 
 template<typename ...Args>
