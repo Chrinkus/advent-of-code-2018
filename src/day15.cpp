@@ -6,15 +6,44 @@
 
 #include <get_input.hpp>
 
+const int int_max = std::numeric_limits<int>::max();
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 struct Point {
     int x, y;
 
-    void move(int dx, int dy) { x += dx; y += dy; }
+    std::vector<Point> get_adjacents() const;
+
+    void move_towards(const Point& pt);
     bool is_adjacent(const Point& pt);
     int distance(const Point& pt);
 };
+
+std::vector<Point> Point::get_adjacents() const
+    // returned in order of up, left, right, down
+{
+    std::vector<Point> vpoints;
+
+    vpoints.emplace_back(Point{x, y-1});
+    vpoints.emplace_back(Point{x-1, y});
+    vpoints.emplace_back(Point{x+1, y});
+    vpoints.emplace_back(Point{x, y+1});
+
+    return vpoints;
+}
+
+void Point::move_towards(const Point& pt)
+{
+    if (pt.y < y)
+        --y;
+    else if (pt.x < x)
+        --x;
+    else if (pt.x > x)
+        ++x;
+    else
+        ++y;
+}
 
 bool Point::is_adjacent(const Point& pt)
 {
@@ -31,16 +60,25 @@ bool operator<(const Point& a, const Point& b)
     return a.y < b.y || (a.y == b.y && a.x < b.x);
 }
 
+std::ostream& operator<<(std::ostream& os, const Point& pt)
+{
+    return os << '(' << pt.x << ", " << pt.y << ')';
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
 class Dist_map {
 private:
     std::vector<std::vector<int>> dist_map;
 public:
     Dist_map(const std::vector<std::string>& battle_map);
 
-    //void map_distances(const Point& pt);
+    void print_grid() const;
+    void map_distances(const Point& pt);
+
+    int operator()(const Point& p) const { return dist_map[p.y][p.x]; }
 private:
-    //bool map_adjacents(const Point& pt, int n);
+    void map_adjacents(const Point& pt, int n);
 };
 
 Dist_map::Dist_map(const std::vector<std::string>& battle_map)
@@ -52,12 +90,18 @@ Dist_map::Dist_map(const std::vector<std::string>& battle_map)
 
     for (size_t i = 0; i < battle_map.size(); ++i)
         for (size_t j = 0; j < battle_map[i].size(); ++j)
-            dist_map[i][j] = battle_map[i][j] == '.'
-                                ? std::numeric_limits<int>::max()
-                                : -1;
+            dist_map[i][j] = battle_map[i][j] == '.' ? int_max : -1;
 }
 
-/*
+void Dist_map::print_grid() const
+{
+    for (const auto& row : dist_map) {
+        for (const auto i : row)
+            std::cout << i << '\t';
+        std::cout << '\n';
+    }
+}
+
 void Dist_map::map_distances(const Point& pt)
 {
     dist_map[pt.y][pt.x] = 0;
@@ -65,19 +109,31 @@ void Dist_map::map_distances(const Point& pt)
     map_adjacents(pt, 1);
 }
 
-bool Dist_map::map_adjacents(const Point& pt, int n)
+void Dist_map::map_adjacents(const Point& pt, int n)
 {
-    int node = dist_map[pt.y][pt.x];
+    auto adjacents = pt.get_adjacents();
 
-    if (0 < node && n < node) {
-        dist_map[p.y][p.x] = n++;
-        map_adjacents(Point{p.y-1,p.x}, n);     // up
-        map_adjacents(Point{p.y,p.x-1}, n);     // left
-        map_adjacents(Point{p.y,p.x+1}, n);     // right
-        map_adjacents(Point{p.y+1,p.x}, n);     // down
+    std::vector<std::pair<bool,Point>> bool_adjs;
+    for (const auto adj : adjacents)
+        bool_adjs.emplace_back(std::make_pair(false, std::move(adj)));
+
+    for (auto& adj : bool_adjs) {
+        int x = adj.second.x;
+        int y = adj.second.y;
+        if (0 <= x && x < dist_map.front().size() && 0 <= y && 
+                y < dist_map.size()) {      // check if valid point
+            int* pi = &dist_map[y][x];      // get current distance value
+            if (0 < *pi && n < *pi) {       // if 'open' and greater than n..
+                *pi = n;                    // ..set value to n..
+                adj.first = true;           // and mark it to be mapped
+            }
+        }
     }
+
+    for (auto& adj : bool_adjs)
+        if (adj.first)
+            map_adjacents(adj.second, n + 1);
 }
-*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -91,11 +147,14 @@ private:
 public:
     explicit Battle(std::vector<std::string> input);
 
+    void print_grid() const;
     int get_score() const;
     Dist_map get_dist_map(const Point& origin) const;
 
     void run_simulation();
     std::vector<Unit*> get_targets(const char type);
+
+    void write_move(const Point& from, const Point& to, const char token);
 private:
     bool process_turn();
 };
@@ -119,10 +178,13 @@ public:
     bool  is_alive() const { return hp > 0 ? true : false; }
 
     bool take_turn();
+    void move(const std::vector<Unit*>& vu, const Dist_map& dm);
     void attack(Unit& u) const { u.take_damage(atk_pwr); }
     void take_damage(int damage) { hp -= damage; }
 private:
     std::vector<Unit*>::iterator check_adj(std::vector<Unit*>& targets) const;
+    Point get_target_square(const std::vector<Unit*>& tars,
+                            const Dist_map& dmap) const;
 };
 
 bool Unit::take_turn()
@@ -134,10 +196,28 @@ bool Unit::take_turn()
     auto it_adj = check_adj(targets);               // attack if already adj
     if (it_adj != std::end(targets))
         attack(**it_adj);
+    else {
+        auto dist_map = pb->get_dist_map(get_loc());
+        move(targets, dist_map);
 
-    auto dist_map = pb->get_dist_map(get_loc());
+        it_adj = check_adj(targets);
+        if (it_adj != std::end(targets))
+            attack(**it_adj);
+    }
 
-    return false;
+    pb->print_grid();                           // TEMP
+    return true;
+}
+
+void Unit::move(const std::vector<Unit*>& vu, const Dist_map& dmap)
+{
+    Point temp = location;
+    auto goal = get_target_square(vu, dmap);
+    //location.move_towards(get_target_square(vu, dmap));
+    location.move_towards(goal);
+    std::cout << get_tok() << ' ' << temp << " to " << get_loc()
+              << " on way to " << goal << '\n';
+    pb->write_move(temp, get_loc(), get_tok());
 }
 
 std::vector<Unit*>::iterator Unit::check_adj(std::vector<Unit*>& targets) const
@@ -151,6 +231,37 @@ std::vector<Unit*>::iterator Unit::check_adj(std::vector<Unit*>& targets) const
             [this](const auto p) {
                 return this->get_loc().is_adjacent(p->get_loc());
             });
+}
+
+Point Unit::get_target_square(const std::vector<Unit*>& tars,
+                              const Dist_map& dmap) const
+{
+    std::vector<Point> all_pts;
+    for (const auto pu : tars) {
+        auto vtemp = pu->get_loc().get_adjacents();
+        std::copy(std::begin(vtemp), std::end(vtemp),
+                  std::back_inserter(all_pts));
+    }
+
+    all_pts.erase(std::remove_if(std::begin(all_pts), std::end(all_pts),
+                [&dmap](const auto& pt) {
+                    return dmap(pt) < 0 || dmap(pt) == int_max;
+                }), std::end(all_pts));
+
+    auto sm_it = std::min_element(std::begin(all_pts), std::end(all_pts),
+            [&dmap](const auto& a, const auto& b) {
+                return dmap(a) < dmap(b);
+            });
+
+    int smallest = dmap(*sm_it);
+    all_pts.erase(std::remove_if(std::begin(all_pts), std::end(all_pts),
+                [&dmap, smallest](const auto& pt) {
+                    return smallest < dmap(pt);
+                }), std::end(all_pts));
+
+    std::sort(std::begin(all_pts), std::end(all_pts));
+    
+    return all_pts.front();
 }
 
 bool operator<(const Unit& a, const Unit& b)
@@ -179,6 +290,16 @@ Battle::Battle(std::vector<std::string> input)
         }
 }
 
+void Battle::print_grid() const
+{
+    for (const auto& row : battle_map) {
+        for (const auto ch : row)
+            std::cout << ch;
+        std::cout << '\n';
+    }
+    std::cout << '\n';
+}
+
 int Battle::get_score() const
 {
     return rounds * std::accumulate(std::begin(units), std::end(units), 0,
@@ -197,11 +318,17 @@ void Battle::run_simulation()
             std::end(units));
 }
 
+void Battle::write_move(const Point& from, const Point& to, const char token)
+{
+    battle_map[from.y][from.x] = '.';
+    battle_map[to.y][to.x] = token;
+}
+
 Dist_map Battle::get_dist_map(const Point& origin) const
 {
     auto dist_map = Dist_map{battle_map};
 
-    //dist_map.map_distances(origin);
+    dist_map.map_distances(origin);
 
     return dist_map;
 }
