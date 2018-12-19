@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <limits>
+#include <memory>
 
 #include <get_input.hpp>
 
@@ -15,44 +16,33 @@ struct Point {
 
     std::vector<Point> get_adjacents() const;
 
-    void move_towards(const Point& pt);
-    bool is_adjacent(const Point& pt);
-    int distance(const Point& pt);
+    bool is_adjacent(const Point& pt) const { return distance(pt) == 1; }
+    int distance(const Point& pt) const
+        { return std::abs(x - pt.x) + std::abs(y - pt.y); }
+
+    void move_to(const Point& pt) { x = pt.x; y = pt.y; }
 };
 
 std::vector<Point> Point::get_adjacents() const
-    // returned in order of up, left, right, down
 {
     std::vector<Point> vpoints;
 
-    vpoints.emplace_back(Point{x, y-1});
-    vpoints.emplace_back(Point{x-1, y});
-    vpoints.emplace_back(Point{x+1, y});
-    vpoints.emplace_back(Point{x, y+1});
+    vpoints.emplace_back(Point{x, y-1});    // up
+    vpoints.emplace_back(Point{x-1, y});    // left
+    vpoints.emplace_back(Point{x+1, y});    // right
+    vpoints.emplace_back(Point{x, y+1});    // down
 
     return vpoints;
 }
 
-void Point::move_towards(const Point& pt)
+bool operator==(const Point& a, const Point& b)
 {
-    if (pt.y < y)
-        --y;
-    else if (pt.x < x)
-        --x;
-    else if (pt.x > x)
-        ++x;
-    else
-        ++y;
+    return a.x == b.x && a.y == b.y;
 }
 
-bool Point::is_adjacent(const Point& pt)
+bool operator!=(const Point& a, const Point& b)
 {
-    return distance(pt) == 1;
-}
-
-int Point::distance(const Point& pt)
-{
-    return std::abs(x - pt.x) + std::abs(y - pt.y);
+    return !(a == b);
 }
 
 bool operator<(const Point& a, const Point& b)
@@ -75,6 +65,7 @@ public:
 
     void print_grid() const;
     void map_distances(const Point& pt);
+    Point find_1(const Point& pt) const;
 
     int operator()(const Point& p) const { return dist_map[p.y][p.x]; }
 private:
@@ -109,6 +100,21 @@ void Dist_map::map_distances(const Point& pt)
     map_adjacents(pt, 1);
 }
 
+Point Dist_map::find_1(const Point& pt) const
+{
+    int dist = (*this)(pt);
+    if (dist == 1)
+        return pt;
+
+    auto vadj = pt.get_adjacents();         // returns points in reading order
+    auto it = std::find_if(std::begin(vadj), std::end(vadj),
+            [this, dist](const auto& pt) {
+                return (*this)(pt) == dist - 1;
+            });
+
+    return find_1(*it);
+}
+
 void Dist_map::map_adjacents(const Point& pt, int n)
 {
     auto adjacents = pt.get_adjacents();
@@ -120,8 +126,8 @@ void Dist_map::map_adjacents(const Point& pt, int n)
     for (auto& adj : bool_adjs) {
         int x = adj.second.x;
         int y = adj.second.y;
-        if (0 <= x && x < dist_map.front().size() && 0 <= y && 
-                y < dist_map.size()) {      // check if valid point
+        if (0 <= x && x < int(dist_map.front().size()) && 0 <= y && 
+                y < int(dist_map.size())) { // check if valid point
             int* pi = &dist_map[y][x];      // get current distance value
             if (0 < *pi && n < *pi) {       // if 'open' and greater than n..
                 *pi = n;                    // ..set value to n..
@@ -145,16 +151,17 @@ private:
     std::vector<std::string> battle_map;
     std::vector<Unit> units;
 public:
-    explicit Battle(std::vector<std::string> input);
+    explicit Battle(const std::vector<std::string>& input, int elf_dam = 3);
 
     void print_grid() const;
     int get_score() const;
     Dist_map get_dist_map(const Point& origin) const;
 
-    void run_simulation();
+    bool run_simulation();
     std::vector<Unit*> get_targets(const char type);
 
     void write_move(const Point& from, const Point& to, const char token);
+    void write_out(const Point& pt) { battle_map[pt.y][pt.x] = '.'; }
 private:
     bool process_turn();
 };
@@ -166,11 +173,11 @@ private:
     char token;
     Point location;
     int hp = 200;
-    int atk_pwr = 3;
     Battle* pb;
+    int atk_pwr;
 public:
-    Unit(char tt, int xx, int yy, Battle* pbattle)
-        : token{tt}, location{xx, yy}, pb{pbattle} { }
+    Unit(char tt, int xx, int yy, Battle* pbattle, int pwr = 3)
+        : token{tt}, location{xx, yy}, pb{pbattle}, atk_pwr{pwr} { }
 
     Point get_loc()  const { return location; }
     char  get_tok()  const { return token; }
@@ -179,13 +186,25 @@ public:
 
     bool take_turn();
     void move(const std::vector<Unit*>& vu, const Dist_map& dm);
-    void attack(Unit& u) const { u.take_damage(atk_pwr); }
-    void take_damage(int damage) { hp -= damage; }
+    void attack(Unit& u) const;
+    void take_damage(int damage);
 private:
     std::vector<Unit*>::iterator check_adj(std::vector<Unit*>& targets) const;
     Point get_target_square(const std::vector<Unit*>& tars,
                             const Dist_map& dmap) const;
+    Unit* get_weakest_adjacent(std::vector<Unit*>& tars) const;
 };
+
+std::ostream& operator<<(std::ostream& os, const Unit& u)
+{
+    return os << u.get_tok() << '@' << u.get_loc()
+              << '(' << u.get_hp() << ')';
+}
+
+void Unit::attack(Unit& u) const
+{
+    u.take_damage(atk_pwr);
+}
 
 bool Unit::take_turn()
 {
@@ -194,29 +213,51 @@ bool Unit::take_turn()
         return false;                               // end of battle!
 
     auto it_adj = check_adj(targets);               // attack if already adj
-    if (it_adj != std::end(targets))
-        attack(**it_adj);
+    if (it_adj != std::end(targets)) {
+        auto weakest = get_weakest_adjacent(targets);
+        attack(*weakest);
+    }
     else {
         auto dist_map = pb->get_dist_map(get_loc());
         move(targets, dist_map);
 
         it_adj = check_adj(targets);
-        if (it_adj != std::end(targets))
-            attack(**it_adj);
+        if (it_adj != std::end(targets)) {
+            auto weakest = get_weakest_adjacent(targets);
+            attack(*weakest);
+        }
     }
 
-    pb->print_grid();                           // TEMP
     return true;
+}
+
+Unit* Unit::get_weakest_adjacent(std::vector<Unit*>& vptars) const
+{
+    std::vector<Unit*> vpadj;
+    std::copy_if(std::begin(vptars), std::end(vptars),
+                 std::back_inserter(vpadj), [this](const auto ptar) {
+                     return this->get_loc().is_adjacent(ptar->get_loc());
+                 });
+
+    std::sort(std::begin(vpadj), std::end(vpadj),
+            [](const auto& pa, const auto& pb) {
+                return pa->get_hp() < pb->get_hp();
+            });
+
+    return vpadj.front();
 }
 
 void Unit::move(const std::vector<Unit*>& vu, const Dist_map& dmap)
 {
     Point temp = location;
     auto goal = get_target_square(vu, dmap);
-    //location.move_towards(get_target_square(vu, dmap));
-    location.move_towards(goal);
-    std::cout << get_tok() << ' ' << temp << " to " << get_loc()
-              << " on way to " << goal << '\n';
+
+    if (goal == Point{0,0})
+        return;
+
+    goal = dmap.find_1(goal);
+    location.move_to(goal);
+
     pb->write_move(temp, get_loc(), get_tok());
 }
 
@@ -233,12 +274,12 @@ std::vector<Unit*>::iterator Unit::check_adj(std::vector<Unit*>& targets) const
             });
 }
 
-Point Unit::get_target_square(const std::vector<Unit*>& tars,
+Point Unit::get_target_square(const std::vector<Unit*>& vptargets,
                               const Dist_map& dmap) const
 {
     std::vector<Point> all_pts;
-    for (const auto pu : tars) {
-        auto vtemp = pu->get_loc().get_adjacents();
+    for (const auto ptarget : vptargets) {
+        auto vtemp = ptarget->get_loc().get_adjacents();
         std::copy(std::begin(vtemp), std::end(vtemp),
                   std::back_inserter(all_pts));
     }
@@ -247,6 +288,9 @@ Point Unit::get_target_square(const std::vector<Unit*>& tars,
                 [&dmap](const auto& pt) {
                     return dmap(pt) < 0 || dmap(pt) == int_max;
                 }), std::end(all_pts));
+
+    if (all_pts.empty())
+        return Point{0,0};                  // good use case for std::optional
 
     auto sm_it = std::min_element(std::begin(all_pts), std::end(all_pts),
             [&dmap](const auto& a, const auto& b) {
@@ -264,6 +308,13 @@ Point Unit::get_target_square(const std::vector<Unit*>& tars,
     return all_pts.front();
 }
 
+void Unit::take_damage(int damage)
+{
+    hp -= damage;
+    if (hp <= 0)
+        pb->write_out(get_loc());
+}
+
 bool operator<(const Unit& a, const Unit& b)
 {
     return a.get_loc() < b.get_loc();
@@ -271,14 +322,14 @@ bool operator<(const Unit& a, const Unit& b)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-Battle::Battle(std::vector<std::string> input)
-    : battle_map{std::move(input)}
+Battle::Battle(const std::vector<std::string>& input, int elf_dam)
+    : battle_map{input}
 {
     for (size_t y = 0; y < battle_map.size(); ++y)
         for (size_t x = 0; x < battle_map[y].size(); ++x) {
             switch (battle_map[y][x]) {
             case 'E':
-                units.emplace_back(Unit{'E', int(x), int(y), this});
+                units.emplace_back(Unit{'E', int(x), int(y), this, elf_dam});
                 break;
             case 'G':
                 units.emplace_back(Unit{'G', int(x), int(y), this});
@@ -306,16 +357,27 @@ int Battle::get_score() const
                 [](auto sum, auto& u) { return sum + u.get_hp(); });
 }
 
-void Battle::run_simulation()
+bool Battle::run_simulation()
 {
-    // run sim
-    while (process_turn())
+    const auto num_elves = std::count_if(std::begin(units), std::end(units),
+            [](const auto& u) { return u.get_tok() == 'E'; });
+
+    while (process_turn()) {
         ++rounds;
+    }
 
     // remove deceased units
     units.erase(std::remove_if(std::begin(units), std::end(units),
                 [](auto& u) { return !u.is_alive(); }),
             std::end(units));
+
+    // part 2: check on elves..
+    auto cur_elves = std::count_if(std::begin(units), std::end(units),
+            [](const auto& u) { return u.get_tok() == 'E' && u.is_alive(); });
+
+    if (cur_elves == num_elves)
+        return true;
+    return false;
 }
 
 void Battle::write_move(const Point& from, const Point& to, const char token)
@@ -363,9 +425,18 @@ int main(int argc, char* argv[])
 
     auto input = utils::get_input_lines(argc, argv, "15");
 
-    auto battle = Battle{input};
-    battle.run_simulation();
+    auto elf_pwr = 3;
+    auto battle = std::make_unique<Battle>(input, elf_pwr);
 
-    auto part1 = battle.get_score();
+    battle->run_simulation();
+    auto part1 = battle->get_score();
     std::cout << "Part 1: " << part1 << '\n';
+
+    do {
+        auto temp = std::make_unique<Battle>(input, ++elf_pwr);
+        battle = std::move(temp);
+    } while(!(battle->run_simulation()));
+
+    auto part2 = battle->get_score();
+    std::cout << "Part 2: " << part2 << '\n';
 }
