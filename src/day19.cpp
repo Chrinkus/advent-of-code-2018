@@ -4,6 +4,7 @@
 #include <array>
 #include <sstream>
 #include <unordered_map>
+#include <functional>
 
 #include <get_input.hpp>
 
@@ -135,13 +136,13 @@ void Device::run_program(int reg_zero)
 
 int get_part2()
 {
-    //const int r4 = 947;
-    const int r4 = 10'551'347;
+    //const int r4 = 947;               // part 1 value
+    const int r4 = 10'551'347;          // calculated by hand
     int r0 = 0;
 
-    for (int i = 1; i <= r4; ++i)
-        if (r4 % i == 0)
-            r0 += i;
+    for (int r1 = 1; r1 <= r4; ++r1)
+        if (r4 % r1 == 0)
+            r0 += r1;
     return r0;
 }
 
