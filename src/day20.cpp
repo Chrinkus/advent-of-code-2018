@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory>
 #include <limits>
+#include <numeric>
 
 #include <get_input.hpp>
 
@@ -151,6 +152,7 @@ public:
     void print_map() const { fmap.print(); }
 
     int max_doors_from_X() const;
+    int count_at_least_1000() const;
 
 private:
     void create_room(const Point& p, const char mid = '.');
@@ -189,6 +191,18 @@ int Facility::max_doors_from_X() const
                                                 std::end(row)));
 
     return *std::max_element(std::begin(max_per_row), std::end(max_per_row));
+}
+
+int Facility::count_at_least_1000() const
+{
+    const auto& grid = dmap.get_grid();
+
+    std::vector<int> v1000;
+    for (const auto& row : grid)
+        v1000.push_back(std::count_if(std::begin(row), std::end(row),
+                    [](const auto v){ return v >= 1000; }));
+
+    return std::accumulate(std::begin(v1000), std::end(v1000), 0);
 }
 
 void Facility::map_distances()
@@ -288,13 +302,14 @@ void Facility::map_rooms(Point p, std::string::const_iterator& it)
         p = add_room(p, *it);
         return map_rooms(p, ++it);
     case '(':
-        map_rooms(p, ++it);
-        while (*it == '|')
+        //map_rooms(p, ++it);
+        while (*it != ')')
             map_rooms(p, ++it);
+        map_rooms(p, ++it);
     case '|':
         return;
     case ')':
-        return map_rooms(p, ++it);
+        return;// map_rooms(p, ++it);
     case '$':
         ++it;
         return;
@@ -334,8 +349,12 @@ int main(int argc, char* argv[])
 
     auto input = utils::get_input_string(argc, argv, "20");
     auto facility = std::make_unique<Facility>(input, 1000);
+    //facility->print_map();
 
     auto part1 = facility->max_doors_from_X();
     std::cout << "Part 1: " << part1 << '\n';
+
+    auto part2 = facility->count_at_least_1000();
+    std::cout << "Part 2: " << part2 << '\n';
 }
 
