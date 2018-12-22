@@ -5,6 +5,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <functional>
+#include <memory>
 
 #include <get_input.hpp>
 
@@ -108,8 +109,7 @@ public:
     int get_register_value(int reg) const { return regs[reg]; }
 
     void load_program(const std::string& input);
-    void run_program(int reg_zero = 0);
-    void run_program_long(int reg_zero = 0);
+    int run_program(std::function<int(Registers&,const int)> before);
 };
 
 void Device::load_program(const std::string& input)
@@ -124,56 +124,52 @@ void Device::load_program(const std::string& input)
     }
 }
 
-void Device::run_program(int reg_zero)
+int Device::run_program(std::function<int(Registers&,const int)> before)
 {
     std::fill(std::begin(regs), std::end(regs), 0);     // reset registers
 
-    regs[0] = reg_zero;
+    int result = 0;
     while (regs[ipr] < int(program.size())) {
-        if (regs[ipr] == 16) {
-            std::cout << "Register 0 must equal: " << regs[1] << '\n';
-            return;
-        }
+        result = before(regs, ipr);
         ops.execute(program[regs[ipr]], regs);
         ++regs[ipr];
     }
+    return result;
 }
 
-void Device::run_program_long(int reg_zero)
-    // run the program until a reg[1] value repeats then take the last value
-{
-    std::fill(std::begin(regs), std::end(regs), 0);
+class Earliest_halt {               // Part 1 functor
+public:
+    Earliest_halt() = default;
 
-    std::vector<int> vzeros;
-    regs[0] = reg_zero;
-    while (regs[ipr] < int(program.size())) {
-        if (regs[ipr] == 16) {
-            //std::cout << "Register 1: " << regs[1] << '\n';
-            auto it = std::find(std::begin(vzeros), std::end(vzeros), regs[1]);
-            if (it != std::end(vzeros)) {
-                std::cout << "Lowest most(?): " << vzeros.back() 
-                          << " after " << vzeros.size() << " passes!\n";
-                return;
-            } else {
-                vzeros.push_back(regs[1]);
-            }
-        }
-        ops.execute(program[regs[ipr]], regs);
-        ++regs[ipr];
+    int operator()(Registers& regs, const int ipr)
+    {
+        if (regs[ipr] == 16)
+            regs[0] = regs[1];
+        return regs[0];
     }
-}
+};
 
-int get_part2()
-{
-    //const int r4 = 947;               // part 1 value
-    const int r4 = 10'551'347;          // calculated by hand
-    int r0 = 0;
+class Last_halt {                   // Part 2 functor
+private:
+    std::vector<int> vr0s;
+public:
+    Last_halt() = default;
 
-    for (int r1 = 1; r1 <= r4; ++r1)
-        if (r4 % r1 == 0)
-            r0 += r1;
-    return r0;
-}
+    int operator()(Registers& regs, const int ipr)
+    {
+        if (regs[ipr] == 16) {
+            int r0 = regs[1];
+
+            auto it = std::find(std::begin(vr0s), std::end(vr0s), r0);
+            if (it != std::end(vr0s))
+                regs[0] = r0;
+            else
+                vr0s.push_back(r0);
+
+        }
+        return vr0s.empty() ? 0 : vr0s.back();
+    }
+};
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
@@ -185,9 +181,9 @@ int main(int argc, char* argv[])
 
     Device device;
     device.load_program(input);
-    device.run_program();
-    device.run_program_long();
 
-    auto part1 = device.get_register_value(0);
+    auto part1 = device.run_program(Earliest_halt{});
     std::cout << "Part 1: " << part1 << '\n';
+    auto part2 = device.run_program(Last_halt{});
+    std::cout << "Part 2: " << part2 << '\n';
 }
