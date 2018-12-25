@@ -8,6 +8,8 @@
 
 const int int_max = std::numeric_limits<int>::max();
 
+class Unknown_terrain{};
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 class Point {
@@ -15,6 +17,8 @@ private:
     int xx, yy;
 public:
     Point(int x, int y) : xx{x}, yy{y} { }
+    Point(size_t x, size_t y)
+        : xx{static_cast<int>(x)}, yy{static_cast<int>(y)} { }
 
     int x() const { return xx; }
     int y() const { return yy; }
@@ -23,6 +27,7 @@ public:
     const std::vector<Point> get_diagonals() const;
 
     void move(int dx, int dy) { xx += dx; yy += dy; }
+    void move_to(const Point& to) { xx = to.x(); yy = to.y(); }
 };
 
 const std::vector<Point> Point::get_adjacents() const
@@ -76,6 +81,8 @@ public:
     void print() const;
 
     const std::vector<std::vector<T>>& get_grid() const { return grid; }
+    const std::vector<std::vector<T>> get_sub_grid(const Point& tl,
+            const Point& br) const;
 
     size_t width() const { return grid.front().size(); }
     size_t height() const { return grid.size(); }
@@ -104,6 +111,26 @@ void Grid<T>::print() const
 }
 
 template<typename T>
+const std::vector<std::vector<T>> Grid<T>::get_sub_grid(const Point& tl,
+        const Point& br) const
+{
+    std::vector<std::vector<T>> vvt;
+
+    int w = br.x() - tl.x() + 1;
+    int h = br.y() - tl.y() + 1;
+
+    vvt.resize(h);
+    for (auto& vt : vvt)
+        vt.resize(w);
+
+    for (size_t i = 0; i < vvt.size(); ++i)
+        for (size_t j = 0; j < vvt[i].size(); ++j)
+            vvt[i][j] = grid[tl.y() + i][tl.x() + j];
+
+    return vvt;
+}
+
+template<typename T>
 void Grid<T>::resize(int x, int y)
 {
     grid.resize(y);
@@ -116,9 +143,12 @@ void Grid<T>::resize(int x, int y)
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 class Cave {
+public:
+    enum class Terrain { rocky, wet, narrow, mouth, target };
+
 private:
     Grid<int> verosion;
-    Grid<char> vtype;
+    Grid<Terrain> vtype;
     Point mouth;
     Point target;
     int depth;
@@ -137,7 +167,7 @@ private:
 
 Cave::Cave(const std::string& input)
     : verosion{Grid<int>(0, 0, 0)}
-    , vtype{Grid<char>(0, 0, '\0')}
+    , vtype{Grid<Terrain>(0, 0, Terrain::rocky)}
     , mouth{0, 0}
     , target{0, 0}
 {
@@ -147,13 +177,15 @@ Cave::Cave(const std::string& input)
     int x, y;
     iss >> label >> depth >> label >> x >> ch >> y;
 
-    verosion.resize(x + 1, y + 1);
-    vtype.resize(x + 1, y + 1);
+    int mapped_x = x * 4;               // more data for part 2
+    int mapped_y = y + 20;              // more data for part 2
+    verosion.resize(mapped_x, mapped_y);
+    vtype.resize(mapped_x, mapped_y);
 
     target.move(x, y);
 
-    vtype(mouth) = 'M';
-    vtype(target) = 'T';
+    vtype(mouth) = Terrain::mouth;
+    vtype(target) = Terrain::target;
 
     fill_verosion();
     fill_vtype();
@@ -161,16 +193,22 @@ Cave::Cave(const std::string& input)
 
 int Cave::calc_risk() const
 {
-    auto grid = vtype.get_grid();
+    auto grid = vtype.get_sub_grid(mouth, target);
 
     std::vector<int> row_risks;
     for (const auto& row : grid)
         row_risks.push_back(std::accumulate(std::begin(row), std::end(row), 0,
-                    [](int& sum, char c) {
-                        switch (c) {
-                        case '=':   return sum + 1;
-                        case '|':   return sum + 2;
-                        default:    return sum;
+                    [](int& sum, Terrain t) {
+                        switch (t) {
+                        case Terrain::mouth:
+                        case Terrain::target:
+                            return sum;
+                        case Terrain::rocky:
+                        case Terrain::wet:
+                        case Terrain::narrow:
+                            return sum + static_cast<int>(t);
+                        default:
+                            throw Unknown_terrain{};
                         }
                     }));
 
@@ -197,8 +235,8 @@ int Cave::calc_erosion_level(const Point& p)
 
 void Cave::fill_verosion()
 {
-    for (int i = 0; i < verosion.height(); ++i)
-        for (int j = 0; j < verosion.width(); ++j) {
+    for (size_t i = 0; i < verosion.height(); ++i)
+        for (size_t j = 0; j < verosion.width(); ++j) {
             Point p {j, i};
             verosion(p) = calc_erosion_level(p);
         }
@@ -209,20 +247,42 @@ void Cave::fill_vtype()
     for (size_t i = 0; i < vtype.height(); ++i)
         for (size_t j = 0; j < vtype.width(); ++j) {
             Point p {j, i};
-            switch (verosion(p) % 3) {
-            case 0:
-                vtype(p) = '.';
-                break;
-            case 1:
-                vtype(p) = '=';
-                break;
-            case 2:
-                vtype(p) = '|';
-                break;
-            default:
-                break;
-            }
+            vtype(p) = static_cast<Terrain>(verosion(p) % 3);
         }
+}
+
+class Climber {
+public:
+    enum class Tool { torch, climbing_gear, neither };
+
+private:
+    int time = 0;
+    Tool tool = Tool::torch;
+    Point location;
+    std::vector<Point> route;
+public:
+    Climber(const Point& start)
+        : location{start} { route.push_back(location); }
+
+    void change_tool(Tool t) { tool = t; time += 7; }
+    void move_to(const Point& to);
+    Point rewind(int n);
+};
+
+void Climber::move_to(const Point& to)
+{
+    location.move_to(to);
+    route.push_back(location);
+    ++time;
+}
+
+Point Climber::rewind(int n)
+{
+    auto it = std::end(route);
+    std::advance(it, -n);
+    route.erase(it);
+    time -= n;
+    return route.back();
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
