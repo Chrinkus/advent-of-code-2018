@@ -5,6 +5,7 @@
 #include <regex>
 #include <sstream>
 #include <unordered_map>
+#include <memory>
 
 #include <get_input.hpp>
 
@@ -25,6 +26,9 @@ private:
 public:
     explicit Group(const std::string& input);
 
+    // part 2
+    void boost_atk(int n) { atk_pwr += n; }
+
     // for ostream
     int get_hp() const { return hp; }
     int get_atk() const { return atk_pwr; }
@@ -38,6 +42,7 @@ public:
     bool is_immune_to(const Type& t) const;
 
     int check_attack(const Group& target) const;
+    Group* get_target() const { return target; }
     void set_target(Group* pg) { target = pg; }
     void attack();
     void take_damage(int damage) { num_units -= damage / hp; }
@@ -141,12 +146,16 @@ public:
     explicit Battle(const std::vector<std::string>& input);
 
     int simulate_immuno_war();
+    void boost_immune(int n);
+    int get_immune_sum() const { return sum_units(immune_sys); }
 private:
     void fight();
     void select_targets(std::vector<Group>& vatk, std::vector<Group>& vdef);
     void attack();
     void purge_dead();
     int sum_units(const std::vector<Group>& vg) const;
+    std::vector<Group*> get_all();
+    bool deadlocked();
 };
 
 Battle::Battle(const std::vector<std::string>& input)
@@ -172,10 +181,22 @@ Battle::Battle(const std::vector<std::string>& input)
 
 int Battle::simulate_immuno_war()
 {
-    while (!immune_sys.empty() && !infection.empty())
+    while (!immune_sys.empty() && !infection.empty()) {
         fight();
+        std::cout << "Immune system: " << sum_units(immune_sys)
+                  << " Infection: " << sum_units(infection) << '\n';
+        if (deadlocked())
+            return 0;
+    }
 
     return immune_sys.empty() ? sum_units(infection) : sum_units(immune_sys);
+}
+
+void Battle::boost_immune(int n)
+{
+    for (auto& g : immune_sys)
+        g.boost_atk(n);
+
 }
 
 void Battle::fight()
@@ -222,11 +243,7 @@ void Battle::select_targets(std::vector<Group>& vatk, std::vector<Group>& vdef)
 
 void Battle::attack()
 {
-    std::vector<Group*> vall;
-    for (auto& g : immune_sys)
-        vall.push_back(&g);
-    for (auto& g : infection)
-        vall.push_back(&g);
+    auto vall = get_all();
 
     std::sort(std::begin(vall), std::end(vall),
             [](const auto pa, const auto pb) {
@@ -256,6 +273,46 @@ int Battle::sum_units(const std::vector<Group>& vg) const
             [](auto& sum, const auto& g) { return sum + g.units(); });
 }
 
+std::vector<Group*> Battle::get_all() 
+{
+    std::vector<Group*> vall;
+    for (auto& g : immune_sys)
+        vall.push_back(&g);
+    for (auto& g : infection)
+        vall.push_back(&g);
+    return vall;
+}
+
+
+bool Battle::deadlocked()
+{
+    const auto vall = get_all();
+    if (std::any_of(std::begin(vall), std::end(vall),
+                [](const auto& p) {
+                    return p->get_target();
+                }))
+        return false;
+    std::cout << "Deadlocked!\n";
+    return true;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+int tilt_immune_sys(const std::vector<std::string>& input)
+{
+    int imm_boost = 43;
+    while (true) {
+        auto b = std::make_unique<Battle>(input);
+        b->boost_immune(imm_boost);
+        b->simulate_immuno_war();
+        auto imm_units = b->get_immune_sum();
+        if (imm_units > 0)
+            return imm_units;
+        else
+            ++imm_boost;
+    }
+}
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 int main(int argc, char* argv[])
@@ -267,4 +324,7 @@ int main(int argc, char* argv[])
 
     auto part1 = battle.simulate_immuno_war();
     std::cout << "Part 1: " << part1 << '\n';
+
+    auto part2 = tilt_immune_sys(input);
+    std::cout << "Part 2: " << part2 << '\n';
 }
