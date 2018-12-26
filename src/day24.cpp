@@ -188,30 +188,33 @@ void Battle::fight()
 
 void Battle::select_targets(std::vector<Group>& vatk, std::vector<Group>& vdef)
 {
-    // sort attackers by effective power
-    std::sort(std::begin(vatk), std::end(vatk),
-            [](const auto& a, const auto& b) { return a > b; });
+    std::vector<Group*> vpa;
+    for (auto& g : vatk)
+        vpa.push_back(&g);
+
+    std::sort(std::begin(vpa), std::end(vpa),
+            [](const auto& pa, const auto& pb) { return *pa > *pb; });
     
-    std::vector<Group*> vtar;               // then gather pointers to targets
+    std::vector<Group*> vpd;               // then gather pointers to targets
     for (auto& g : vdef)
-        vtar.push_back(&g);
+        vpd.push_back(&g);
     
-    for (auto& atk : vatk) {                // each atk grp picks a target
-        if (vtar.empty())                   // until no targets are left
-            atk.set_target(nullptr);
+    for (auto& patk : vpa) {                // each atk grp picks a target
+        if (vpd.empty())                   // until no targets are left
+            patk->set_target(nullptr);
         else {
-            std::sort(std::rbegin(vtar), std::rend(vtar),
-                [&atk](const auto pa, const auto pb) {
-                    return atk.check_attack(*pa) > atk.check_attack(*pb) ||
-                           (atk.check_attack(*pa) == atk.check_attack(*pb) &&
+            std::sort(std::rbegin(vpd), std::rend(vpd),
+                [&patk](const auto pa, const auto pb) {
+                    return patk->check_attack(*pa) > patk->check_attack(*pb) ||
+                        (patk->check_attack(*pa) == patk->check_attack(*pb) &&
                            *pa > *pb);
                 });
-            auto ptar = vtar.back();          
-            if (atk.check_attack(*ptar) > 0) {  
-                atk.set_target(ptar);           
-                vtar.pop_back();                
+            auto ptar = vpd.back();          
+            if (patk->check_attack(*ptar) > 0) {  
+                patk->set_target(ptar);           
+                vpd.pop_back();                
             } else {
-                atk.set_target(nullptr);       
+                patk->set_target(nullptr);       
             }
         }
     }
